@@ -1,7 +1,7 @@
 # Archon
 
 <p align="center">
-  <img src="static/logo.png" alt="Archon" width="72" />
+  <img src="static/logo_text.png" alt="Archon" width="200" />
 </p>
 
 A minimalistic AI-powered search assistant that combines **SearXNG** (local web
