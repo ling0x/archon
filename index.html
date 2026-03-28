@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Archon</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>Archon</h1>
+        <p class="subtitle">Search the web. Think with AI.</p>
+      </header>
+
+      <main>
+        <form id="search-form">
+          <div class="input-row">
+            <input
+              id="query-input"
+              type="text"
+              placeholder="Ask anything…"
+              autocomplete="off"
+              autofocus
+            />
+            <button type="submit" id="submit-btn">
+              <span id="btn-label">Search</span>
+            </button>
+          </div>
+        </form>
+
+        <section id="status" class="hidden"></section>
+
+        <section id="answer-section" class="hidden">
+          <h2>Answer</h2>
+          <div id="answer"></div>
+        </section>
+
+        <section id="sources-section" class="hidden">
+          <h2>Sources</h2>
+          <ul id="sources"></ul>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
