@@ -5,6 +5,7 @@ import { getAppElements } from './ui/dom';
 import { createChatHistoryView } from './ui/chatHistory';
 import { createMobileSidebar } from './ui/sidebar';
 import { createStatusBar } from './ui/statusBar';
+import { initModelSelect } from './modelPicker';
 
 const el = getAppElements();
 
@@ -73,9 +74,11 @@ el.mainEl.addEventListener('submit', async (e) => {
     history,
     input: el.input,
     mainEl: el.mainEl,
+    modelSelect: el.modelSelect,
   });
 
   parsed.input.value = '';
 });
 
 history.render();
+void initModelSelect(el.modelSelect);

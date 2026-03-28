@@ -15,6 +15,7 @@ import { getCurrentChatId, setCurrentChatId } from '../session';
 import type { ChatHistoryView } from '../ui/chatHistory';
 import type { ConversationView } from '../ui/conversation';
 import type { StatusBar } from '../ui/statusBar';
+import { getSelectedModel } from '../modelPicker';
 import {
   setComposerBusyState,
   updateTopFormVisibility,
@@ -26,6 +27,7 @@ export type SearchFlowDeps = {
   history: ChatHistoryView;
   input: HTMLInputElement;
   mainEl: HTMLElement;
+  modelSelect: HTMLSelectElement;
 };
 
 function priorTurnsForPrompt(chatId: string | null): PriorTurn[] {
@@ -41,7 +43,9 @@ function priorTurnsForPrompt(chatId: string | null): PriorTurn[] {
 const PLACEHOLDER_FOLLOW = 'Ask a follow-up…';
 
 export async function runSearch(query: string, deps: SearchFlowDeps): Promise<void> {
-  const { status, conversation, history, input, mainEl } = deps;
+  const { status, conversation, history, input, mainEl, modelSelect } = deps;
+
+  const model = getSelectedModel(modelSelect);
 
   const threadId = getCurrentChatId();
   const isFollowUp = threadId !== null;
@@ -59,7 +63,7 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
     setComposerBusyState(mainEl, 'formulating');
     status.set('Formulating search query from conversation…');
     try {
-      searchQuery = await formulateSearchQuery(query, priorTurns);
+      searchQuery = await formulateSearchQuery(query, priorTurns, model);
     } catch {
       searchQuery = query;
     }
@@ -96,7 +100,7 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
       query,
       context,
       priorTurns,
-      'gpt-oss:20b',
+      model,
       isFollowUp ? { searchQueryUsed: searchQuery } : undefined,
     )) {
       answerRaw += token;

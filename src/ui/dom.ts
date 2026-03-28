@@ -7,6 +7,7 @@ function req<T extends HTMLElement>(id: string): T {
 export type AppElements = {
   appShell: HTMLElement;
   mainEl: HTMLElement;
+  modelSelect: HTMLSelectElement;
   form: HTMLFormElement;
   input: HTMLInputElement;
   submitBtn: HTMLButtonElement;
@@ -24,6 +25,7 @@ export function getAppElements(): AppElements {
   return {
     appShell: req('app-shell'),
     mainEl: req('main-panel'),
+    modelSelect: req<HTMLSelectElement>('model-select'),
     form: req<HTMLFormElement>('search-form'),
     input: req<HTMLInputElement>('query-input'),
     submitBtn: req<HTMLButtonElement>('submit-btn'),

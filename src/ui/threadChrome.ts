@@ -44,4 +44,7 @@ export function setComposerBusyState(
   mainEl.querySelectorAll<HTMLSpanElement>('.composer-submit-label').forEach((el) => {
     el.textContent = label;
   });
+  mainEl.querySelectorAll<HTMLSelectElement>('.composer-model-select').forEach((sel) => {
+    sel.disabled = busy;
+  });
 }
