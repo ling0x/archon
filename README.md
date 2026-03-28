@@ -1,8 +1,8 @@
-# Archon
-
 <p align="center">
-  <img src="static/logo_text.png" alt="Archon" width="200" />
+  <img src="static/logo_text.png" alt="Archon" width="500" />
 </p>
+
+# Archon
 
 A minimalistic AI-powered search assistant that combines **SearXNG** (local web
 search) with **Ollama** (local LLM) to answer your questions using real web
