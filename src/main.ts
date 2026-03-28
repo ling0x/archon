@@ -1,101 +1,57 @@
-import { searchSearXNG, type SearchResult } from './searxng';
-import { streamOllamaAnswer } from './ollama';
-import { renderAnswerMarkdown } from './markdown';
+import { createChatSessionController, type ChatSessionController } from './app/chatSession';
+import { runSearch } from './app/searchFlow';
+import { getAppElements } from './ui/dom';
+import { createAnswerPanel } from './ui/answerPanel';
+import { createChatHistoryView } from './ui/chatHistory';
+import { createMobileSidebar } from './ui/sidebar';
+import { createSourcesList } from './ui/sourcesList';
+import { createStatusBar } from './ui/statusBar';
 
-const form        = document.getElementById('search-form')    as HTMLFormElement;
-const input       = document.getElementById('query-input')    as HTMLInputElement;
-const submitBtn   = document.getElementById('submit-btn')     as HTMLButtonElement;
-const btnLabel    = document.getElementById('btn-label')      as HTMLSpanElement;
-const statusEl    = document.getElementById('status')         as HTMLElement;
-const answerSec   = document.getElementById('answer-section') as HTMLElement;
-const answerEl    = document.getElementById('answer')         as HTMLElement;
-const sourcesSec  = document.getElementById('sources-section')as HTMLElement;
-const sourcesEl   = document.getElementById('sources')        as HTMLUListElement;
+const el = getAppElements();
 
-function setStatus(msg: string, isError = false) {
-  statusEl.textContent = msg;
-  statusEl.classList.remove('hidden', 'error');
-  if (isError) statusEl.classList.add('error');
-}
+const status = createStatusBar(el.statusEl);
+const answer = createAnswerPanel(el.answerEl, el.answerSec);
+const sources = createSourcesList(el.sourcesEl, el.sourcesSec);
 
-function clearStatus() {
-  statusEl.classList.add('hidden');
-  statusEl.textContent = '';
-}
+const sidebar = createMobileSidebar({
+  appShell: el.appShell,
+  backdrop: el.sidebarBackdrop,
+  toggleBtn: el.sidebarOpenBtn,
+});
 
-function renderSources(results: SearchResult[]) {
-  sourcesEl.innerHTML = '';
-  results.forEach((r) => {
-    const li = document.createElement('li');
-    const a  = document.createElement('a');
-    a.href = r.url;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.innerHTML = `
-      <span class="source-title">${escapeHtml(r.title || r.url)}</span>
-      <span class="source-url">${escapeHtml(r.url)}</span>
-    `;
-    li.appendChild(a);
-    sourcesEl.appendChild(li);
-  });
-  sourcesSec.classList.remove('hidden');
-}
+let chatSession: ChatSessionController;
 
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+const history = createChatHistoryView({
+  listEl: el.chatHistoryEl,
+  onSelect: (id) => chatSession.selectById(id),
+});
 
-function buildContext(results: SearchResult[]): string {
-  return results
-    .map((r, i) => `[${i + 1}] ${r.title}\nURL: ${r.url}\n${r.content}`)
-    .join('\n\n');
-}
+chatSession = createChatSessionController({
+  input: el.input,
+  status,
+  answer,
+  sources,
+  history,
+  onAfterNavigate: () => sidebar.close(),
+});
 
-form.addEventListener('submit', async (e) => {
+el.newChatBtn.addEventListener('click', () => chatSession.beginNew());
+
+sidebar.bind();
+
+el.form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const query = input.value.trim();
+  const query = el.input.value.trim();
   if (!query) return;
 
-  // reset UI
-  answerEl.innerHTML = '';
-  sourcesEl.innerHTML   = '';
-  answerSec.classList.add('hidden');
-  sourcesSec.classList.add('hidden');
-  submitBtn.disabled  = true;
-  btnLabel.textContent = 'Searching…';
-
-  let results: SearchResult[] = [];
-
-  try {
-    setStatus('Searching the web via SearXNG…');
-    results = await searchSearXNG(query);
-
-    if (results.length === 0) {
-      setStatus('No search results found. Asking Ollama anyway…');
-    } else {
-      setStatus(`Found ${results.length} results. Generating answer…`);
-      renderSources(results);
-    }
-  } catch (err) {
-    setStatus(`Search failed: ${(err as Error).message}. Attempting to answer without search results…`, true);
-  }
-
-  answerSec.classList.remove('hidden');
-  answerEl.innerHTML = '';
-  let answerRaw = '';
-  btnLabel.textContent = 'Thinking…';
-
-  try {
-    const context = buildContext(results);
-    for await (const token of streamOllamaAnswer(query, context)) {
-      answerRaw += token;
-      answerEl.innerHTML = renderAnswerMarkdown(answerRaw);
-    }
-    clearStatus();
-  } catch (err) {
-    setStatus(`Ollama error: ${(err as Error).message}`, true);
-  } finally {
-    submitBtn.disabled   = false;
-    btnLabel.textContent = 'Search';
-  }
+  await runSearch(query, {
+    status,
+    answer,
+    sources,
+    submitBtn: el.submitBtn,
+    btnLabel: el.btnLabel,
+    history,
+  });
 });
+
+history.render();
