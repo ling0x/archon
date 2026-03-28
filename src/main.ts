@@ -1,5 +1,6 @@
 import { searchSearXNG, type SearchResult } from './searxng';
 import { streamOllamaAnswer } from './ollama';
+import { renderAnswerMarkdown } from './markdown';
 
 const form        = document.getElementById('search-form')    as HTMLFormElement;
 const input       = document.getElementById('query-input')    as HTMLInputElement;
@@ -56,7 +57,7 @@ form.addEventListener('submit', async (e) => {
   if (!query) return;
 
   // reset UI
-  answerEl.textContent  = '';
+  answerEl.innerHTML = '';
   sourcesEl.innerHTML   = '';
   answerSec.classList.add('hidden');
   sourcesSec.classList.add('hidden');
@@ -80,13 +81,15 @@ form.addEventListener('submit', async (e) => {
   }
 
   answerSec.classList.remove('hidden');
-  answerEl.textContent = '';
+  answerEl.innerHTML = '';
+  let answerRaw = '';
   btnLabel.textContent = 'Thinking…';
 
   try {
     const context = buildContext(results);
     for await (const token of streamOllamaAnswer(query, context)) {
-      answerEl.textContent += token;
+      answerRaw += token;
+      answerEl.innerHTML = renderAnswerMarkdown(answerRaw);
     }
     clearStatus();
   } catch (err) {
