@@ -6,15 +6,14 @@ function req<T extends HTMLElement>(id: string): T {
 
 export type AppElements = {
   appShell: HTMLElement;
+  mainEl: HTMLElement;
   form: HTMLFormElement;
   input: HTMLInputElement;
   submitBtn: HTMLButtonElement;
   btnLabel: HTMLSpanElement;
   statusEl: HTMLElement;
-  answerSec: HTMLElement;
-  answerEl: HTMLElement;
-  sourcesSec: HTMLElement;
-  sourcesEl: HTMLUListElement;
+  conversationSec: HTMLElement;
+  conversationEl: HTMLElement;
   newChatBtn: HTMLButtonElement;
   chatHistoryEl: HTMLUListElement;
   sidebarOpenBtn: HTMLButtonElement;
@@ -24,15 +23,14 @@ export type AppElements = {
 export function getAppElements(): AppElements {
   return {
     appShell: req('app-shell'),
+    mainEl: req('main-panel'),
     form: req<HTMLFormElement>('search-form'),
     input: req<HTMLInputElement>('query-input'),
     submitBtn: req<HTMLButtonElement>('submit-btn'),
     btnLabel: req<HTMLSpanElement>('btn-label'),
     statusEl: req('status'),
-    answerSec: req('answer-section'),
-    answerEl: req('answer'),
-    sourcesSec: req('sources-section'),
-    sourcesEl: req<HTMLUListElement>('sources'),
+    conversationSec: req('conversation-section'),
+    conversationEl: req('conversation'),
     newChatBtn: req<HTMLButtonElement>('new-chat-btn'),
     chatHistoryEl: req<HTMLUListElement>('chat-history'),
     sidebarOpenBtn: req<HTMLButtonElement>('sidebar-open-btn'),

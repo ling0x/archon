@@ -1,10 +1,10 @@
 import type { ChatRecord } from '../chatStorage';
 import { loadChats } from '../chatStorage';
 import { setCurrentChatId } from '../session';
-import type { AnswerPanel } from '../ui/answerPanel';
 import type { ChatHistoryView } from '../ui/chatHistory';
-import type { SourcesList } from '../ui/sourcesList';
+import type { ConversationView } from '../ui/conversation';
 import type { StatusBar } from '../ui/statusBar';
+import { updateTopFormVisibility } from '../ui/threadChrome';
 
 export type ChatSessionController = {
   applyRecord: (chat: ChatRecord) => void;
@@ -12,45 +12,45 @@ export type ChatSessionController = {
   selectById: (id: string) => void;
 };
 
+const PH_NEW = 'Ask anything…';
+
 export function createChatSessionController(deps: {
   input: HTMLInputElement;
   status: StatusBar;
-  answer: AnswerPanel;
-  sources: SourcesList;
+  conversation: ConversationView;
   history: ChatHistoryView;
+  mainEl: HTMLElement;
   onAfterNavigate?: () => void;
 }): ChatSessionController {
-  const { input, status, answer, sources, history, onAfterNavigate } = deps;
+  const { input, status, conversation, history, mainEl, onAfterNavigate } = deps;
 
   function applyRecord(chat: ChatRecord) {
     setCurrentChatId(chat.id);
-    input.value = chat.query;
+    input.value = '';
+    input.placeholder = PH_NEW;
 
-    if (chat.error) {
-      status.set(`Ollama error: ${chat.error}`, true);
+    conversation.renderChat(chat);
+    updateTopFormVisibility(mainEl);
+
+    const last = chat.turns[chat.turns.length - 1];
+    if (last?.error) {
+      status.set(`Ollama error: ${last.error}`, true);
     } else {
       status.clear();
     }
 
-    if (chat.answerRaw) {
-      answer.setFromMarkdown(chat.answerRaw);
-    } else {
-      answer.clear();
-      answer.hideSection();
-    }
-
-    sources.render(chat.sources);
     history.syncActive();
   }
 
   function beginNew() {
     setCurrentChatId(null);
     input.value = '';
-    answer.clear();
-    answer.hideSection();
-    sources.clear();
+    input.placeholder = PH_NEW;
+    conversation.clear();
+    conversation.hide();
     status.clear();
     history.syncActive();
+    updateTopFormVisibility(mainEl);
     input.focus();
     onAfterNavigate?.();
   }

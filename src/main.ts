@@ -1,17 +1,15 @@
 import { createChatSessionController, type ChatSessionController } from './app/chatSession';
 import { runSearch } from './app/searchFlow';
+import { createConversationView } from './ui/conversation';
 import { getAppElements } from './ui/dom';
-import { createAnswerPanel } from './ui/answerPanel';
 import { createChatHistoryView } from './ui/chatHistory';
 import { createMobileSidebar } from './ui/sidebar';
-import { createSourcesList } from './ui/sourcesList';
 import { createStatusBar } from './ui/statusBar';
 
 const el = getAppElements();
 
 const status = createStatusBar(el.statusEl);
-const answer = createAnswerPanel(el.answerEl, el.answerSec);
-const sources = createSourcesList(el.sourcesEl, el.sourcesSec);
+const conversation = createConversationView(el.conversationEl, el.conversationSec);
 
 const sidebar = createMobileSidebar({
   appShell: el.appShell,
@@ -29,9 +27,9 @@ const history = createChatHistoryView({
 chatSession = createChatSessionController({
   input: el.input,
   status,
-  answer,
-  sources,
+  conversation,
   history,
+  mainEl: el.mainEl,
   onAfterNavigate: () => sidebar.close(),
 });
 
@@ -39,19 +37,45 @@ el.newChatBtn.addEventListener('click', () => chatSession.beginNew());
 
 sidebar.bind();
 
-el.form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const query = el.input.value.trim();
-  if (!query) return;
+function getQueryFromForm(form: HTMLFormElement): {
+  input: HTMLInputElement;
+  query: string;
+} | null {
+  if (form.id === 'search-form') {
+    const q = el.input.value.trim();
+    return q ? { input: el.input, query: q } : null;
+  }
+  if (form.classList.contains('turn-followup')) {
+    const input = form.querySelector<HTMLInputElement>('.turn-followup-input');
+    if (!input || input.disabled || input.classList.contains('is-followup-inactive')) {
+      return null;
+    }
+    const q = input.value.trim();
+    return q ? { input, query: q } : null;
+  }
+  return null;
+}
 
-  await runSearch(query, {
+el.mainEl.addEventListener('submit', async (e) => {
+  const form = e.target;
+  if (!(form instanceof HTMLFormElement)) return;
+  if (form.id !== 'search-form' && !form.classList.contains('turn-followup')) {
+    return;
+  }
+  e.preventDefault();
+
+  const parsed = getQueryFromForm(form);
+  if (!parsed) return;
+
+  await runSearch(parsed.query, {
     status,
-    answer,
-    sources,
-    submitBtn: el.submitBtn,
-    btnLabel: el.btnLabel,
+    conversation,
     history,
+    input: el.input,
+    mainEl: el.mainEl,
   });
+
+  parsed.input.value = '';
 });
 
 history.render();

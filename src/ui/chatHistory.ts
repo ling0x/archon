@@ -1,4 +1,4 @@
-import { loadChats } from '../chatStorage';
+import { chatHasError, chatTitle, loadChats } from '../chatStorage';
 import { getCurrentChatId } from '../session';
 import { formatChatTime, truncate } from '../utils/format';
 
@@ -41,12 +41,18 @@ export function createChatHistoryView(opts: {
 
       const title = document.createElement('span');
       title.className = 'chat-history-title';
-      title.textContent = truncate(chat.query, 56);
+      title.textContent = truncate(chatTitle(chat), 56);
 
       const meta = document.createElement('span');
       meta.className = 'chat-history-meta';
-      meta.textContent = formatChatTime(chat.createdAt);
-      if (chat.error) meta.textContent += ' · Error';
+      meta.textContent = formatChatTime(chat.updatedAt);
+      if (chatHasError(chat)) meta.textContent += ' · Error';
+
+      const turnsHint =
+        chat.turns.length > 1
+          ? ` · ${chat.turns.length} messages`
+          : '';
+      meta.textContent += turnsHint;
 
       li.append(title, meta);
       li.addEventListener('click', () => onSelect(chat.id));

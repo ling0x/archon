@@ -46,32 +46,28 @@
           </div>
         </header>
 
-        <main>
-          <form id="search-form">
+        <main id="main-panel">
+          <form id="search-form" autocomplete="off">
             <div class="input-row">
               <input
                 id="query-input"
+                class="composer-input"
                 type="text"
                 placeholder="Ask anything…"
                 autocomplete="off"
                 autofocus
               />
-              <button type="submit" id="submit-btn">
-                <span id="btn-label">Search</span>
+              <button type="submit" id="submit-btn" class="composer-submit-btn">
+                <span id="btn-label" class="composer-submit-label">Search</span>
               </button>
             </div>
           </form>
 
           <section id="status" class="hidden"></section>
 
-          <section id="answer-section" class="hidden">
-            <h2>Answer</h2>
-            <div id="answer" class="markdown-body"></div>
-          </section>
-
-          <section id="sources-section" class="hidden">
-            <h2>Sources</h2>
-            <ul id="sources"></ul>
+          <section id="conversation-section" class="hidden">
+            <h2>Conversation</h2>
+            <div id="conversation" class="conversation" aria-live="polite"></div>
           </section>
         </main>
       </div>
