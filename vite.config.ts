@@ -6,6 +6,7 @@ export default defineConfig(({ mode }) => {
   const port = Number.isFinite(parsed) ? parsed : 5173;
 
   return {
+    publicDir: 'static',
     server: {
       port,
       proxy: {

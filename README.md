@@ -1,5 +1,9 @@
 # Archon
 
+<p align="center">
+  <img src="static/logo.png" alt="Archon" width="72" />
+</p>
+
 A minimalistic AI-powered search assistant that combines **SearXNG** (local web
 search) with **Ollama** (local LLM) to answer your questions using real web
 results.
