@@ -1,4 +1,10 @@
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 :root {
   --bg: #0f0f0f;
@@ -9,10 +15,11 @@
   --text: #e8e8e8;
   --muted: #888;
   --radius: 10px;
-  --font: 'Inter', system-ui, sans-serif;
+  --font: "Inter", system-ui, sans-serif;
 }
 
-html, body {
+html,
+body {
   height: 100%;
   background: var(--bg);
   color: var(--text);
@@ -37,11 +44,14 @@ html, body {
 }
 
 .site-logo {
-  width: 44px;
-  height: 44px;
+  display: block;
+  height: auto;
+  max-height: 52px;
+  width: auto;
+  max-width: min(100%, 320px);
   object-fit: contain;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: 50%;
   box-shadow: 0 2px 12px rgba(124, 106, 255, 0.2);
 }
 
@@ -99,8 +109,13 @@ h1 {
   white-space: nowrap;
 }
 
-#submit-btn:hover:not(:disabled) { background: var(--accent-hover); }
-#submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+#submit-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+#submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 #status {
   margin-top: 1.2rem;
@@ -109,7 +124,8 @@ h1 {
   font-style: italic;
 }
 
-#answer-section, #sources-section {
+#answer-section,
+#sources-section {
   margin-top: 2rem;
 }
 
@@ -136,8 +152,12 @@ h2 {
   color: var(--text);
 }
 
-#answer.markdown-body > *:first-child { margin-top: 0; }
-#answer.markdown-body > *:last-child { margin-bottom: 0; }
+#answer.markdown-body > *:first-child {
+  margin-top: 0;
+}
+#answer.markdown-body > *:last-child {
+  margin-bottom: 0;
+}
 
 #answer.markdown-body p {
   margin: 0.65rem 0;
@@ -154,10 +174,18 @@ h2 {
   color: var(--text);
 }
 
-#answer.markdown-body h1 { font-size: 1.45rem; }
-#answer.markdown-body h2 { font-size: 1.25rem; }
-#answer.markdown-body h3 { font-size: 1.1rem; }
-#answer.markdown-body h4 { font-size: 1rem; }
+#answer.markdown-body h1 {
+  font-size: 1.45rem;
+}
+#answer.markdown-body h2 {
+  font-size: 1.25rem;
+}
+#answer.markdown-body h3 {
+  font-size: 1.1rem;
+}
+#answer.markdown-body h4 {
+  font-size: 1rem;
+}
 
 #answer.markdown-body ul,
 #answer.markdown-body ol {
@@ -169,7 +197,9 @@ h2 {
   margin: 0.35rem 0;
 }
 
-#answer.markdown-body li > p { margin: 0.35rem 0; }
+#answer.markdown-body li > p {
+  margin: 0.35rem 0;
+}
 
 #answer.markdown-body blockquote {
   margin: 0.85rem 0;
@@ -180,7 +210,9 @@ h2 {
   border-radius: 0 var(--radius) var(--radius) 0;
 }
 
-#answer.markdown-body blockquote p { margin: 0.4rem 0; }
+#answer.markdown-body blockquote p {
+  margin: 0.4rem 0;
+}
 
 #answer.markdown-body hr {
   border: none;
@@ -192,7 +224,9 @@ h2 {
   color: var(--accent-hover);
   text-decoration: none;
   border-bottom: 1px solid rgba(155, 141, 255, 0.45);
-  transition: color 0.15s, border-color 0.15s;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
 }
 
 #answer.markdown-body a:hover {
@@ -201,7 +235,8 @@ h2 {
 }
 
 #answer.markdown-body :not(pre) > code {
-  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Menlo, Consolas, monospace;
+  font-family:
+    ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.88em;
   background: rgba(0, 0, 0, 0.35);
   padding: 0.15em 0.45em;
@@ -273,11 +308,26 @@ h2 {
   transition: border-color 0.2s;
 }
 
-#sources li a:hover { border-color: var(--accent); color: var(--accent-hover); }
+#sources li a:hover {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
 
-#sources li .source-title { font-weight: 500; }
-#sources li .source-url  { display: block; font-size: 0.78rem; color: var(--muted); margin-top: 0.15rem; }
+#sources li .source-title {
+  font-weight: 500;
+}
+#sources li .source-url {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
 
-.hidden { display: none !important; }
+.hidden {
+  display: none !important;
+}
 
-.error { color: #ff6b6b !important; font-style: normal !important; }
+.error {
+  color: #ff6b6b !important;
+  font-style: normal !important;
+}
