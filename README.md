@@ -21,8 +21,8 @@ results.
         ip daddr 172.18.0.0/16 ct state established,related accept
     }
     ```
-    If you are using a VPN (e.g. MullVad VPN), you need to set the priority
-    higher such as -1
+    If you are using a VPN (e.g. MullVad VPN or using MullVad Browser), you need
+    to set the priority higher such as -1
     ```
     chain forward {
        type filter hook forward priority -1; policy drop;
