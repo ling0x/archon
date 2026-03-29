@@ -6,6 +6,8 @@ export interface ChatTurn {
   query: string;
   answerRaw: string;
   sources: SearchResult[];
+  /** Ollama model id used for this answer (and query formulation on follow-ups). */
+  model?: string;
   error?: string;
 }
 
@@ -85,6 +87,7 @@ export function createTurn(
     query: partial.query,
     answerRaw: partial.answerRaw,
     sources: partial.sources,
+    model: partial.model,
     error: partial.error,
   };
 }

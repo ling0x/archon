@@ -4,12 +4,12 @@ import { createConversationView } from './ui/conversation';
 import { getAppElements } from './ui/dom';
 import { createChatHistoryView } from './ui/chatHistory';
 import { createMobileSidebar } from './ui/sidebar';
-import { createStatusBar } from './ui/statusBar';
+import { createStatusBar, statusSlotForSubmittedForm } from './ui/statusBar';
 import { initModelSelect } from './modelPicker';
 
 const el = getAppElements();
 
-const status = createStatusBar(el.statusEl);
+const status = createStatusBar(el.statusEl, el.mainEl);
 const conversation = createConversationView(el.conversationEl, el.conversationSec);
 
 const sidebar = createMobileSidebar({
@@ -28,6 +28,7 @@ const history = createChatHistoryView({
 chatSession = createChatSessionController({
   input: el.input,
   status,
+  mainStatusSlot: el.statusEl,
   conversation,
   history,
   mainEl: el.mainEl,
@@ -39,7 +40,7 @@ el.newChatBtn.addEventListener('click', () => chatSession.beginNew());
 sidebar.bind();
 
 function getQueryFromForm(form: HTMLFormElement): {
-  input: HTMLInputElement;
+  input: HTMLTextAreaElement;
   query: string;
 } | null {
   if (form.id === 'search-form') {
@@ -47,7 +48,7 @@ function getQueryFromForm(form: HTMLFormElement): {
     return q ? { input: el.input, query: q } : null;
   }
   if (form.classList.contains('turn-followup')) {
-    const input = form.querySelector<HTMLInputElement>('.turn-followup-input');
+    const input = form.querySelector<HTMLTextAreaElement>('.turn-followup-input');
     if (!input || input.disabled || input.classList.contains('is-followup-inactive')) {
       return null;
     }
@@ -68,8 +69,11 @@ el.mainEl.addEventListener('submit', async (e) => {
   const parsed = getQueryFromForm(form);
   if (!parsed) return;
 
+  const statusSlot = statusSlotForSubmittedForm(form, el.statusEl);
+
   await runSearch(parsed.query, {
     status,
+    statusSlot,
     conversation,
     history,
     input: el.input,
@@ -81,4 +85,4 @@ el.mainEl.addEventListener('submit', async (e) => {
 });
 
 history.render();
-void initModelSelect(el.modelSelect);
+void initModelSelect(el.modelSelect, el.mainEl);

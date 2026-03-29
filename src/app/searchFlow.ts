@@ -23,9 +23,11 @@ import {
 
 export type SearchFlowDeps = {
   status: StatusBar;
+  /** Composer status line to use for this run (main or the submitting follow-up strip). */
+  statusSlot: HTMLElement;
   conversation: ConversationView;
   history: ChatHistoryView;
-  input: HTMLInputElement;
+  input: HTMLTextAreaElement;
   mainEl: HTMLElement;
   modelSelect: HTMLSelectElement;
 };
@@ -43,7 +45,10 @@ function priorTurnsForPrompt(chatId: string | null): PriorTurn[] {
 const PLACEHOLDER_FOLLOW = 'Ask a follow-up…';
 
 export async function runSearch(query: string, deps: SearchFlowDeps): Promise<void> {
-  const { status, conversation, history, input, mainEl, modelSelect } = deps;
+  const { status, statusSlot, conversation, history, input, mainEl, modelSelect } =
+    deps;
+
+  status.setTarget(statusSlot);
 
   const model = getSelectedModel(modelSelect);
 
@@ -54,7 +59,7 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
     conversation.clear();
   }
 
-  const turnUi = conversation.startTurn(query);
+  const turnUi = conversation.startTurn(query, model);
 
   const priorTurns = priorTurnsForPrompt(isFollowUp ? threadId : null);
 
@@ -108,7 +113,7 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
     }
     status.clear();
 
-    const turn = createTurn({ query, answerRaw, sources: results });
+    const turn = createTurn({ query, answerRaw, sources: results, model });
     if (isFollowUp) {
       appendTurnToChat(threadId!, turn);
     } else {
@@ -132,6 +137,7 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
       query,
       answerRaw,
       sources: results,
+      model,
       error: msg,
     });
     if (isFollowUp) {
@@ -155,7 +161,7 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
       input.placeholder = PLACEHOLDER_FOLLOW;
     }
     mainEl
-      .querySelectorAll<HTMLInputElement>(
+      .querySelectorAll<HTMLTextAreaElement>(
         '.turn-followup-input:not([disabled]):not(.is-followup-inactive)',
       )
       .forEach((inp) => {
@@ -163,7 +169,7 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
       });
     requestAnimationFrame(() => {
       mainEl
-        .querySelector<HTMLInputElement>(
+        .querySelector<HTMLTextAreaElement>(
           '.turn-followup-input:not([disabled]):not(.is-followup-inactive)',
         )
         ?.focus();

@@ -9,7 +9,7 @@ export type AppElements = {
   mainEl: HTMLElement;
   modelSelect: HTMLSelectElement;
   form: HTMLFormElement;
-  input: HTMLInputElement;
+  input: HTMLTextAreaElement;
   submitBtn: HTMLButtonElement;
   btnLabel: HTMLSpanElement;
   statusEl: HTMLElement;
@@ -27,10 +27,10 @@ export function getAppElements(): AppElements {
     mainEl: req('main-panel'),
     modelSelect: req<HTMLSelectElement>('model-select'),
     form: req<HTMLFormElement>('search-form'),
-    input: req<HTMLInputElement>('query-input'),
+    input: req<HTMLTextAreaElement>('query-input'),
     submitBtn: req<HTMLButtonElement>('submit-btn'),
     btnLabel: req<HTMLSpanElement>('btn-label'),
-    statusEl: req('status'),
+    statusEl: req('main-composer-status'),
     conversationSec: req('conversation-section'),
     conversationEl: req('conversation'),
     newChatBtn: req<HTMLButtonElement>('new-chat-btn'),

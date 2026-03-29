@@ -3,6 +3,22 @@ import { renderAnswerMarkdown } from '../markdown';
 import type { SearchResult } from '../searxng';
 import { escapeHtml } from '../utils/html';
 
+function fillTurnQueryRow(row: HTMLElement, query: string, model?: string): void {
+  row.textContent = '';
+  const qSpan = document.createElement('span');
+  qSpan.className = 'turn-query-text';
+  qSpan.textContent = query;
+  row.appendChild(qSpan);
+  const m = model?.trim();
+  if (m) {
+    const tag = document.createElement('span');
+    tag.className = 'turn-model-tag';
+    tag.textContent = m;
+    tag.title = `Model: ${m}`;
+    row.appendChild(tag);
+  }
+}
+
 function renderSourcesList(parent: HTMLElement, results: SearchResult[]): void {
   parent.innerHTML = '';
   if (results.length === 0) {
@@ -46,38 +62,80 @@ function renderTurnContent(aEl: HTMLElement, turn: ChatTurn): void {
   aEl.innerHTML = html;
 }
 
-function createFollowupSlot(isLast: boolean): HTMLFormElement {
+function cloneModelSelectOptions(from: HTMLSelectElement, to: HTMLSelectElement): void {
+  to.innerHTML = from.innerHTML;
+  to.value = from.value;
+}
+
+function createFollowupSlot(isLast: boolean): HTMLElement {
+  const strip = document.createElement('div');
+  strip.className = 'composer-strip turn-followup-strip';
+
   const form = document.createElement('form');
-  form.className = 'turn-followup';
+  form.className = 'composer-strip-form turn-followup';
   form.setAttribute('aria-label', 'Follow-up question');
 
   const row = document.createElement('div');
   row.className = 'input-row turn-followup-row';
 
-  const inp = document.createElement('input');
-  inp.type = 'text';
-  inp.className = 'composer-input turn-followup-input';
-  inp.autocomplete = 'off';
+  const ta = document.createElement('textarea');
+  ta.className = 'composer-input turn-followup-input';
+  ta.autocomplete = 'off';
   if (isLast) {
-    inp.placeholder = 'Ask a follow-up…';
+    ta.placeholder = 'Ask a follow-up…';
   } else {
-    inp.placeholder = 'Continue with the composer below';
-    inp.classList.add('is-followup-inactive');
+    ta.placeholder = 'Continue with the composer below';
+    ta.classList.add('is-followup-inactive');
   }
+
+  const submitRow = document.createElement('div');
+  submitRow.className = 'composer-submit-row';
+
+  const modelWrap = document.createElement('div');
+  modelWrap.className = 'composer-model-inline';
+
+  const label = document.createElement('label');
+  label.className = 'composer-model-label';
+  label.textContent = 'Model';
+
+  const modelSel = document.createElement('select');
+  modelSel.className = 'composer-model-select';
+  modelSel.setAttribute('aria-label', 'Ollama model');
+  const sid = `followup-model-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())}`;
+  label.htmlFor = sid;
+  modelSel.id = sid;
+
+  const template = document.querySelector<HTMLSelectElement>('#model-select');
+  if (template) {
+    cloneModelSelectOptions(template, modelSel);
+  }
+
+  if (!isLast) {
+    modelSel.classList.add('is-followup-inactive');
+  }
+
+  modelWrap.append(label, modelSel);
 
   const btn = document.createElement('button');
   btn.type = 'submit';
-  btn.className = 'submit-btn composer-submit-btn turn-followup-submit';
+  btn.className = 'composer-submit-btn turn-followup-submit';
   if (!isLast) btn.classList.add('is-followup-inactive');
 
   const span = document.createElement('span');
-  span.className = 'btn-label composer-submit-label';
+  span.className = 'composer-submit-label';
   span.textContent = 'Search';
   btn.appendChild(span);
 
-  row.append(inp, btn);
+  submitRow.append(modelWrap, btn);
+  row.append(ta, submitRow);
   form.appendChild(row);
-  return form;
+
+  const statusLine = document.createElement('div');
+  statusLine.className = 'composer-status turn-followup-composer-status hidden';
+  statusLine.setAttribute('aria-live', 'polite');
+
+  strip.append(form, statusLine);
+  return strip;
 }
 
 export type TurnUi = {
@@ -90,7 +148,7 @@ export type ConversationView = {
   show: () => void;
   hide: () => void;
   renderChat: (chat: ChatRecord) => void;
-  startTurn: (query: string) => TurnUi;
+  startTurn: (query: string, model: string) => TurnUi;
   scrollToBottom: () => void;
 };
 
@@ -122,7 +180,7 @@ export function createConversationView(
 
         const qEl = document.createElement('div');
         qEl.className = 'turn-query';
-        qEl.textContent = turn.query;
+        fillTurnQueryRow(qEl, turn.query, turn.model);
 
         const srcWrap = document.createElement('div');
         srcWrap.className = 'turn-sources';
@@ -143,20 +201,20 @@ export function createConversationView(
       scrollToBottom();
       requestAnimationFrame(() => {
         container
-          .querySelector<HTMLInputElement>(
+          .querySelector<HTMLTextAreaElement>(
             '.turn-followup-input:not([disabled]):not(.is-followup-inactive)',
           )
           ?.focus();
       });
     },
 
-    startTurn(query: string): TurnUi {
+    startTurn(query: string, model: string): TurnUi {
       const article = document.createElement('article');
       article.className = 'turn turn-pending';
 
       const qEl = document.createElement('div');
       qEl.className = 'turn-query';
-      qEl.textContent = query;
+      fillTurnQueryRow(qEl, query, model);
 
       const srcWrap = document.createElement('div');
       srcWrap.className = 'turn-sources hidden';

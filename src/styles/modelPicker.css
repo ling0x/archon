@@ -3,8 +3,8 @@
 .composer-model-inline {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  flex-shrink: 0;
+  gap: 0.6rem;
+  margin-left: 0.6rem;
 }
 
 .composer-model-label {

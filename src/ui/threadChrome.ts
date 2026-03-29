@@ -32,7 +32,7 @@ export function setComposerBusyState(
           : 'Search';
 
   mainEl
-    .querySelectorAll<HTMLInputElement>('.composer-input')
+    .querySelectorAll<HTMLTextAreaElement>('.composer-input')
     .forEach((inp) => {
       const inactive = inp.classList.contains('is-followup-inactive');
       inp.disabled = busy || inactive;
@@ -45,6 +45,7 @@ export function setComposerBusyState(
     el.textContent = label;
   });
   mainEl.querySelectorAll<HTMLSelectElement>('.composer-model-select').forEach((sel) => {
-    sel.disabled = busy;
+    const inactive = sel.classList.contains('is-followup-inactive');
+    sel.disabled = busy || inactive;
   });
 }

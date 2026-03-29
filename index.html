@@ -61,40 +61,44 @@
               autocomplete="off"
             >
               <div class="input-row">
-                <input
+                <textarea
                   id="query-input"
                   class="composer-input"
-                  type="text"
                   placeholder="Ask anything…"
                   autocomplete="off"
                   autofocus
-                />
-                <button
-                  type="submit"
-                  id="submit-btn"
-                  class="composer-submit-btn"
-                >
-                  <span id="btn-label" class="composer-submit-label"
-                    >Search</span
+                ></textarea>
+                <div class="composer-submit-row">
+                  <div class="composer-model-inline">
+                    <label for="model-select" class="composer-model-label"
+                      >Model</label
+                    >
+                    <select
+                      id="model-select"
+                      class="composer-model-select"
+                      aria-label="Ollama model"
+                    >
+                      <option value="">Loading…</option>
+                    </select>
+                  </div>
+                  <button
+                    type="submit"
+                    id="submit-btn"
+                    class="composer-submit-btn"
                   >
-                </button>
+                    <span id="btn-label" class="composer-submit-label"
+                      >Search</span
+                    >
+                  </button>
+                </div>
               </div>
             </form>
-            <div class="composer-model-inline">
-              <label for="model-select" class="composer-model-label"
-                >Model</label
-              >
-              <select
-                id="model-select"
-                class="composer-model-select"
-                aria-label="Ollama model"
-              >
-                <option value="">Loading…</option>
-              </select>
-            </div>
+            <div
+              class="composer-status hidden"
+              id="main-composer-status"
+              aria-live="polite"
+            ></div>
           </div>
-
-          <section id="status" class="hidden"></section>
 
           <section id="conversation-section" class="hidden">
             <h2>Conversation</h2>

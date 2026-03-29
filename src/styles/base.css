@@ -37,9 +37,9 @@ body {
 .main-column {
   flex: 1;
   min-width: 0;
-  max-width: 760px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 3rem 1.5rem 4rem;
+  padding: 3rem 1.5rem 4rem 272px;
   width: 100%;
 }
 
@@ -50,4 +50,10 @@ body {
 .error {
   color: #ff6b6b !important;
   font-style: normal !important;
+}
+
+@media (max-width: 1200px) {
+  .main-column {
+    padding: 3rem 1.5rem 4rem;
+  }
 }

@@ -1,8 +1,19 @@
-/* ui/statusBar.ts */
+/* ui/statusBar.ts — status line under each composer strip */
 
-#status {
-  margin-top: 1.2rem;
+.composer-status {
+  width: 100%;
+  margin-top: 1rem;
   font-size: 0.9rem;
   color: var(--muted);
   font-style: italic;
+}
+
+/* Top composer: hide status when the form is hidden (thread uses inline composers). */
+.composer-strip:has(#search-form.hidden) > .composer-status {
+  display: none !important;
+}
+
+.composer-status.error {
+  color: #ff6b6b;
+  font-style: normal;
 }

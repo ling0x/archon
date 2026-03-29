@@ -3,7 +3,7 @@ import { loadChats } from '../chatStorage';
 import { setCurrentChatId } from '../session';
 import type { ChatHistoryView } from '../ui/chatHistory';
 import type { ConversationView } from '../ui/conversation';
-import type { StatusBar } from '../ui/statusBar';
+import { statusSlotAtConversationTail, type StatusBar } from '../ui/statusBar';
 import { updateTopFormVisibility } from '../ui/threadChrome';
 
 export type ChatSessionController = {
@@ -15,14 +15,23 @@ export type ChatSessionController = {
 const PH_NEW = 'Ask anything…';
 
 export function createChatSessionController(deps: {
-  input: HTMLInputElement;
+  input: HTMLTextAreaElement;
   status: StatusBar;
+  mainStatusSlot: HTMLElement;
   conversation: ConversationView;
   history: ChatHistoryView;
   mainEl: HTMLElement;
   onAfterNavigate?: () => void;
 }): ChatSessionController {
-  const { input, status, conversation, history, mainEl, onAfterNavigate } = deps;
+  const {
+    input,
+    status,
+    mainStatusSlot,
+    conversation,
+    history,
+    mainEl,
+    onAfterNavigate,
+  } = deps;
 
   function applyRecord(chat: ChatRecord) {
     setCurrentChatId(chat.id);
@@ -31,6 +40,8 @@ export function createChatSessionController(deps: {
 
     conversation.renderChat(chat);
     updateTopFormVisibility(mainEl);
+
+    status.setTarget(statusSlotAtConversationTail(mainEl, mainStatusSlot));
 
     const last = chat.turns[chat.turns.length - 1];
     if (last?.error) {
@@ -48,7 +59,7 @@ export function createChatSessionController(deps: {
     input.placeholder = PH_NEW;
     conversation.clear();
     conversation.hide();
-    status.clear();
+    status.clearAll();
     history.syncActive();
     updateTopFormVisibility(mainEl);
     input.focus();

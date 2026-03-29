@@ -20,14 +20,11 @@
   margin-top: 0.35rem;
 }
 
-.turn-followup {
+.turn-followup-strip {
   margin-top: 0.25rem;
   padding-top: 0.85rem;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.turn-followup .input-row {
-  align-items: stretch;
+  margin-bottom: 0;
 }
 
 .turn-followup-row {
@@ -36,7 +33,8 @@
 
 /* Inactive follow-up slots: same components as main, dimmed */
 .turn-followup .composer-input.is-followup-inactive,
-.turn-followup .composer-submit-btn.is-followup-inactive {
+.turn-followup .composer-submit-btn.is-followup-inactive,
+.turn-followup .composer-model-select.is-followup-inactive {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -49,12 +47,41 @@
 }
 
 .turn-query {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.45rem 0.75rem;
   padding: 0.7rem 1.1rem;
   font-weight: 500;
   color: var(--text);
   border-bottom: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.02);
   font-size: 0.95rem;
+}
+
+.turn-query-text {
+  flex: 1;
+  min-width: min(100%, 10rem);
+  line-height: 1.45;
+}
+
+.turn-model-tag {
+  flex-shrink: 0;
+  align-self: flex-start;
+  max-width: 100%;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--accent-hover);
+  background: rgba(124, 106, 255, 0.14);
+  border: 1px solid rgba(124, 106, 255, 0.35);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .turn-sources {
