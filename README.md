@@ -32,7 +32,7 @@ results.
     ```
     Sometimes your firewall is blocking docker network access, so check ufw if
     applicable.
-- Ollama running on `http://localhost:11434` with model `gpt-oss:20b` pulled
+- Ollama running on `http://localhost:11434` with model `mistral:7b` pulled
 
 ## Setup
 
@@ -43,9 +43,13 @@ download ollama and pull your favorite model and `ollama serve` if ollama isn't
 already running as a service in your system, in which case you can check
 `sudo systemctl status ollama`.
 
-- For a 16GB laptop, you can totally run `mistral:7b`, its very lightweight and
-  efficient; if you have beefier machines, you can run `gpt-oss`, `qwen3.5` or
-  `deepseek-r1`
+- For a 16GB laptop with something like RTX 2060 for GPU, you can totally run
+  `mistral:7b`, its very lightweight and efficient, anything above 7b will
+  struggle on a 16GB laptop; if you have 96GB RAM with RTX 4090 GPU, you can run
+  `gpt-oss:20b`, `qwen3.5:35b` or `deepseek-r1:32b`; consider running quantized
+  versions in resource constrained environments. Also, llama3.2:1b can also run
+  on CPU instead of GPU if you are running on a server without a GPU, it can be
+  done.
 
 ```bash
 npm install
