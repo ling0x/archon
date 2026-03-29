@@ -41,7 +41,7 @@ function renderTurnContent(aEl: HTMLElement, turn: ChatTurn): void {
     html += `<p class="turn-error-note">${escapeHtml(turn.error)}</p>`;
   }
   if (turn.answerRaw) {
-    html += renderAnswerMarkdown(turn.answerRaw);
+    html += renderAnswerMarkdown(turn.answerRaw, turn.sources);
   }
   aEl.innerHTML = html;
 }
@@ -169,12 +169,15 @@ export function createConversationView(
       section.classList.remove('hidden');
       scrollToBottom();
 
+      let turnSources: SearchResult[] = [];
+
       return {
         setSources(results: SearchResult[]) {
+          turnSources = results;
           renderSourcesList(srcWrap, results);
         },
         setAnswerMarkdown(raw: string) {
-          aEl.innerHTML = renderAnswerMarkdown(raw);
+          aEl.innerHTML = renderAnswerMarkdown(raw, turnSources);
           scrollToBottom();
         },
       };

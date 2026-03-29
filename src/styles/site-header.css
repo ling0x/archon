@@ -1,0 +1,87 @@
+/* index.html site header (branding + mobile menu trigger) */
+
+.site-header {
+  position: relative;
+  margin-bottom: 2.5rem;
+  text-align: center;
+}
+
+.sidebar-open-btn {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 1.2rem;
+  line-height: 1;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.sidebar-open-btn:hover {
+  border-color: var(--accent);
+}
+
+@media (max-width: 1200px) {
+  .sidebar-open-btn {
+    display: flex;
+  }
+}
+
+.site-header-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.site-header-logo {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.site-logo {
+  display: block;
+  height: auto;
+  max-height: 52px;
+  width: auto;
+  max-width: min(100%, 320px);
+  object-fit: contain;
+  flex-shrink: 0;
+  border-radius: 50%;
+  box-shadow: 0 2px 12px rgba(124, 106, 255, 0.2);
+}
+
+.site-header-text {
+  min-width: 0;
+}
+
+.site-header h1 {
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  color: var(--muted);
+  margin-top: 0.4rem;
+  font-size: 0.95rem;
+}

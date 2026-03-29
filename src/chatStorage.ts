@@ -1,4 +1,4 @@
-import type { SearchResult } from './searxng';
+import type { SearchResult } from "./searxng";
 
 export interface ChatTurn {
   id: string;
@@ -16,67 +16,31 @@ export interface ChatRecord {
   turns: ChatTurn[];
 }
 
-/** @deprecated flat shape — migrated on load */
-interface LegacyChatRecord {
-  id: string;
-  createdAt: number;
-  query: string;
-  answerRaw: string;
-  sources: SearchResult[];
-  error?: string;
-}
-
-const KEY = 'archon-chats-v1';
+const KEY = "archon-chats-v1";
 const MAX_CHATS = 100;
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
-function isLegacyRecord(x: unknown): x is LegacyChatRecord {
-  if (x === null || typeof x !== 'object') return false;
-  const o = x as Record<string, unknown>;
-  return (
-    typeof o.query === 'string' &&
-    !Array.isArray(o.turns)
-  );
-}
-
-function migrateRecord(raw: unknown): ChatRecord | null {
-  if (raw === null || typeof raw !== 'object') return null;
+function parseChatRecord(raw: unknown): ChatRecord | null {
+  if (raw === null || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
+  if (!Array.isArray(o.turns) || o.turns.length === 0) return null;
 
-  if (Array.isArray(o.turns)) {
-    const turns = o.turns as ChatTurn[];
-    if (!turns.length) return null;
-    const lastTs = turns[turns.length - 1]?.createdAt;
-    return {
-      id: String(o.id),
-      createdAt: Number(o.createdAt) || Date.now(),
-      updatedAt:
-        Number(o.updatedAt) || Number(lastTs) || Number(o.createdAt) || Date.now(),
-      turns,
-    };
-  }
+  const turns = o.turns as ChatTurn[];
+  const lastTs = turns[turns.length - 1]?.createdAt;
 
-  if (isLegacyRecord(raw)) {
-    const t: ChatTurn = {
-      id: generateId(),
-      createdAt: raw.createdAt,
-      query: raw.query,
-      answerRaw: raw.answerRaw,
-      sources: Array.isArray(raw.sources) ? raw.sources : [],
-      error: raw.error,
-    };
-    return {
-      id: raw.id,
-      createdAt: raw.createdAt,
-      updatedAt: raw.createdAt,
-      turns: [t],
-    };
-  }
-
-  return null;
+  return {
+    id: String(o.id),
+    createdAt: Number(o.createdAt) || Date.now(),
+    updatedAt:
+      Number(o.updatedAt) ||
+      Number(lastTs) ||
+      Number(o.createdAt) ||
+      Date.now(),
+    turns,
+  };
 }
 
 export function loadChats(): ChatRecord[] {
@@ -85,17 +49,9 @@ export function loadChats(): ChatRecord[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-
-    let needsSave = false;
-    const out: ChatRecord[] = [];
-    for (const item of parsed) {
-      if (isLegacyRecord(item)) needsSave = true;
-      const rec = migrateRecord(item);
-      if (rec) out.push(rec);
-    }
-
-    if (needsSave) saveChats(out);
-    return out;
+    return parsed
+      .map(parseChatRecord)
+      .filter((c): c is ChatRecord => c !== null);
   } catch {
     return [];
   }
@@ -110,7 +66,7 @@ export function getChatById(id: string): ChatRecord | undefined {
 }
 
 export function chatTitle(chat: ChatRecord): string {
-  return chat.turns[0]?.query?.trim() || 'Untitled';
+  return chat.turns[0]?.query?.trim() || "Untitled";
 }
 
 export function chatHasError(chat: ChatRecord): boolean {
@@ -118,7 +74,10 @@ export function chatHasError(chat: ChatRecord): boolean {
 }
 
 export function createTurn(
-  partial: Omit<ChatTurn, 'id' | 'createdAt'> & { id?: string; createdAt?: number },
+  partial: Omit<ChatTurn, "id" | "createdAt"> & {
+    id?: string;
+    createdAt?: number;
+  },
 ): ChatTurn {
   return {
     id: partial.id ?? generateId(),
@@ -142,7 +101,10 @@ export function createNewChatWithTurn(turn: ChatTurn): ChatRecord {
   return rec;
 }
 
-export function appendTurnToChat(chatId: string, turn: ChatTurn): ChatRecord | null {
+export function appendTurnToChat(
+  chatId: string,
+  turn: ChatTurn,
+): ChatRecord | null {
   const chats = loadChats();
   const idx = chats.findIndex((c) => c.id === chatId);
   if (idx === -1) return null;

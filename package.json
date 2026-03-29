@@ -1,6 +1,7 @@
 {
   "name": "archon",
   "version": "1.0.0",
+  "type": "module",
   "description": "Minimalistic SearXNG + Ollama search assistant",
   "scripts": {
     "dev": "vite",

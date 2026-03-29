@@ -1,0 +1,60 @@
+/* ui/threadChrome.ts — main composer strip + shared input/button classes */
+
+.composer-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.65rem 0.75rem;
+  margin-bottom: 0.15rem;
+}
+
+.composer-strip-form {
+  flex: 1;
+  min-width: min(100%, 240px);
+}
+
+.input-row {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.composer-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  color: var(--text);
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.composer-input:focus {
+  border-color: var(--accent);
+}
+
+.composer-submit-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.75rem 1.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.composer-submit-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.composer-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

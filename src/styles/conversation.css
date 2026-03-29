@@ -1,0 +1,267 @@
+/* ui/conversation.ts — thread, turns, sources, markdown answers */
+
+#conversation-section {
+  margin-top: 2rem;
+}
+
+#conversation-section h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 0.8rem;
+}
+
+.conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  margin-top: 0.35rem;
+}
+
+.turn-followup {
+  margin-top: 0.25rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.turn-followup .input-row {
+  align-items: stretch;
+}
+
+.turn-followup-row {
+  margin: 0;
+}
+
+/* Inactive follow-up slots: same components as main, dimmed */
+.turn-followup .composer-input.is-followup-inactive,
+.turn-followup .composer-submit-btn.is-followup-inactive {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.turn {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.turn-query {
+  padding: 0.7rem 1.1rem;
+  font-weight: 500;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 0.95rem;
+}
+
+.turn-sources {
+  padding: 0.75rem 1rem 0;
+}
+
+.turn-sources-heading {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 0.45rem;
+}
+
+.turn-error-note {
+  color: #ff6b6b;
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  font-style: normal;
+}
+
+.turn-answer {
+  padding: 1.2rem 1.35rem;
+  line-height: 1.75;
+  font-size: 0.97rem;
+}
+
+/* Markdown inside assistant replies */
+.turn-answer.markdown-body {
+  color: var(--text);
+}
+
+.turn-answer.markdown-body > *:first-child {
+  margin-top: 0;
+}
+.turn-answer.markdown-body > *:last-child {
+  margin-bottom: 0;
+}
+
+.turn-answer.markdown-body p {
+  margin: 0.65rem 0;
+}
+
+.turn-answer.markdown-body h1,
+.turn-answer.markdown-body h2,
+.turn-answer.markdown-body h3,
+.turn-answer.markdown-body h4 {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  margin: 1.35rem 0 0.5rem;
+  color: var(--text);
+}
+
+.turn-answer.markdown-body h1 {
+  font-size: 1.45rem;
+}
+.turn-answer.markdown-body h2 {
+  font-size: 1.25rem;
+}
+.turn-answer.markdown-body h3 {
+  font-size: 1.1rem;
+}
+.turn-answer.markdown-body h4 {
+  font-size: 1rem;
+}
+
+.turn-answer.markdown-body ul,
+.turn-answer.markdown-body ol {
+  margin: 0.65rem 0;
+  padding-left: 1.35rem;
+}
+
+.turn-answer.markdown-body li {
+  margin: 0.35rem 0;
+}
+
+.turn-answer.markdown-body li > p {
+  margin: 0.35rem 0;
+}
+
+.turn-answer.markdown-body blockquote {
+  margin: 0.85rem 0;
+  padding: 0.5rem 0 0.5rem 1rem;
+  border-left: 3px solid var(--accent);
+  color: #c8c8d4;
+  background: rgba(124, 106, 255, 0.06);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+
+.turn-answer.markdown-body blockquote p {
+  margin: 0.4rem 0;
+}
+
+.turn-answer.markdown-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.25rem 0;
+}
+
+.turn-answer.markdown-body a {
+  color: var(--accent-hover);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(155, 141, 255, 0.45);
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.turn-answer.markdown-body a:hover {
+  color: #c4b8ff;
+  border-bottom-color: rgba(196, 184, 255, 0.7);
+}
+
+.turn-answer.markdown-body a.citation-link {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.turn-answer.markdown-body :not(pre) > code {
+  font-family:
+    ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.88em;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.15em 0.45em;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.turn-answer.markdown-body pre {
+  margin: 0.85rem 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.turn-answer.markdown-body pre code.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 1rem 1.1rem;
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.turn-answer.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.85rem 0;
+  font-size: 0.92rem;
+}
+
+.turn-answer.markdown-body th,
+.turn-answer.markdown-body td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.turn-answer.markdown-body th {
+  background: rgba(124, 106, 255, 0.1);
+  font-weight: 600;
+}
+
+.turn-answer.markdown-body tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.turn-answer.markdown-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+.turn-sources-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.turn-sources-list li a {
+  display: block;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.7rem 1rem;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.turn-sources-list li a:hover {
+  border-color: var(--accent);
+  color: var(--accent-hover);
+}
+
+.turn-sources-list li .source-title {
+  font-weight: 500;
+}
+.turn-sources-list li .source-url {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
