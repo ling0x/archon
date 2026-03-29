@@ -6,7 +6,10 @@
 
 A minimalistic AI-powered search assistant that combines **SearXNG** (local web
 search) with **Ollama** (local LLM) to answer your questions using real web
-results.
+results. It is privacy-focused with chat history saved locally in the browser.
+Searxng can be configured to use VPN and aggregate search results in various
+ways. And since everything is running locally on your privately hosted instance,
+there is no tracking or training of your data of any kind.
 
 ## Prerequisites
 
