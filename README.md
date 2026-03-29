@@ -39,7 +39,13 @@ results.
 cd into searxng folder and then setup the .env file based on .env.example and
 then run `docker compose up -d`.
 
-download ollama and pull your favorite model and then `ollama serve`.
+download ollama and pull your favorite model and `ollama serve` if ollama isn't
+already running as a service in your system, in which case you can check
+`sudo systemctl status ollama`.
+
+- For a 16GB laptop, you can totally run `mistral:7b`, its very lightweight and
+  efficient; if you have beefier machines, you can run `gpt-oss`, `qwen3.5` or
+  `deepseek-r1`
 
 ```bash
 npm install
@@ -54,7 +60,7 @@ Then open [http://localhost:5173](http://localhost:5173).
 2. The app queries your local SearXNG instance with search queries formulated by
    a lightweight AI model and then retrieves and merges the top 8 results per
    each queries (max 3 queries).
-3. The results are bundled into a prompt and sent to Ollama (`gpt-oss:20b`) via
+3. The results are bundled into a prompt and sent to Ollama (`mistral:7b`) via
    streaming.
 4. The answer streams in token-by-token, with sources listed below.
 
