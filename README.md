@@ -31,7 +31,7 @@ Then open [http://localhost:5173](http://localhost:5173).
 ## How it works
 
 1. You type a question in the input box and hit **Search**.
-2. The app queries your local SearXNG instance and retrieves the top 8 results.
+2. The app queries your local SearXNG instance with search queries formulated by a lightweigt AI model and then retrieves and merges the top 8 results per each queries (max 3 queries).
 3. The results are bundled into a prompt and sent to Ollama (`gpt-oss:20b`) via
    streaming.
 4. The answer streams in token-by-token, with sources listed below.
