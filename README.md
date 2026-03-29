@@ -12,6 +12,16 @@ results.
 
 - [Node.js](https://nodejs.org) ≥ 18
 - SearXNG running on `http://localhost:8080`
+  - If searXNG cannot be reached, try add the following to nftables in
+    archlinux:
+    ```
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+        ip saddr 172.18.0.0/16 accept
+        ip daddr 172.18.0.0/16 ct state established,related accept
+    }
+    ```
+    Sometimes your firewall is blocking access, so check ufw if applicable.
 - Ollama running on `http://localhost:11434` with model `gpt-oss:20b` pulled
 
 ## Setup
