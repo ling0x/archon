@@ -21,7 +21,17 @@ results.
         ip daddr 172.18.0.0/16 ct state established,related accept
     }
     ```
-    Sometimes your firewall is blocking access, so check ufw if applicable.
+    If you are using a VPN (e.g. MullVad VPN), you need to set the priority
+    higher such as -1
+    ```
+    chain forward {
+       type filter hook forward priority -1; policy drop;
+       ip saddr 172.18.0.0/16 accept
+       ip daddr 172.18.0.0/16 ct state established,related accept
+     }
+    ```
+    Sometimes your firewall is blocking docker network access, so check ufw if
+    applicable.
 - Ollama running on `http://localhost:11434` with model `gpt-oss:20b` pulled
 
 ## Setup
