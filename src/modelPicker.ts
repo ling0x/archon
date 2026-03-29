@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'archon-ollama-model';
-const FALLBACK_MODEL = 'gpt-oss:20b';
+const FALLBACK_MODEL: string = __OLLAMA_FALLBACK_MODEL__;
 
 function syncAllModelSelectsFrom(source: HTMLSelectElement): void {
   const html = source.innerHTML;

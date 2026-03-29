@@ -45,7 +45,7 @@ function buildPriorBlockTruncated(priorTurns: readonly PriorTurn[]): string {
 }
 
 /** Model dedicated to turning user intent into SearXNG sub-queries (not the answer model). */
-export const SEARCH_FORMULATION_MODEL = 'qwen3.5:9b';
+export const SEARCH_FORMULATION_MODEL: string = __SEARCH_FORMULATION_MODEL__;
 
 const MAX_SUB_QUERIES = 3;
 const MAX_SUBQUERY_LEN = 200;
