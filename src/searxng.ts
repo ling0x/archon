@@ -44,6 +44,41 @@ export function dedupeSearchResultsByUrl(results: SearchResult[]): SearchResult[
   return out;
 }
 
+/**
+ * Take up to one new hit per batch per round (q0 → q1 → q2 → …), skipping duplicate URLs,
+ * until maxTotal or all batches are exhausted. Gives even representation across sub-queries
+ * when each returns distinct URLs.
+ */
+function mergeSearchResultsRoundRobin(
+  batches: readonly (readonly SearchResult[])[],
+  maxTotal: number,
+): SearchResult[] {
+  const seen = new Set<string>();
+  const out: SearchResult[] = [];
+  const nextIdx = batches.map(() => 0);
+
+  while (out.length < maxTotal) {
+    let progressed = false;
+    for (let i = 0; i < batches.length && out.length < maxTotal; i++) {
+      const batch = batches[i]!;
+      let idx = nextIdx[i]!;
+      while (idx < batch.length) {
+        const r = batch[idx]!;
+        idx++;
+        nextIdx[i] = idx;
+        const key = r.url.trim().toLowerCase();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        out.push(r);
+        progressed = true;
+        break;
+      }
+    }
+    if (!progressed) break;
+  }
+  return out;
+}
+
 export type SearchSearXNGMultiOptions = {
   /** Max hits per sub-query (default 8). */
   perQuery?: number;
@@ -52,7 +87,7 @@ export type SearchSearXNGMultiOptions = {
 };
 
 /**
- * Run up to 3 distinct queries in parallel, merge and dedupe by URL, then truncate to maxTotal.
+ * Run up to 3 distinct queries in parallel, merge with round-robin dedupe by URL, cap at maxTotal.
  * Failed sub-queries yield no hits for that line only.
  */
 export async function searchSearXNGMulti(
@@ -74,5 +109,5 @@ export async function searchSearXNGMulti(
     }),
   );
 
-  return dedupeSearchResultsByUrl(batches.flat()).slice(0, maxTotal);
+  return mergeSearchResultsRoundRobin(batches, maxTotal);
 }
