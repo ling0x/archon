@@ -6,6 +6,7 @@
   font-size: 0.9rem;
   color: var(--muted);
   font-style: italic;
+  white-space: pre-line;
 }
 
 /* Top composer: hide status when the form is hidden (thread uses inline composers). */

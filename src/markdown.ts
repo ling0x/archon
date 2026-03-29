@@ -116,11 +116,11 @@ function addCitationLinkClass(html: string): string {
 
 export function renderAnswerMarkdown(
   raw: string,
-  sources?: readonly SearchResult[],
+  sources: readonly SearchResult[],
 ): string {
   try {
     let md = raw;
-    if (sources && sources.length > 0) {
+    if (sources.length > 0) {
       md = injectCitationMarkdownLinks(raw, buildUrlIndex(sources));
     }
     const html = marked.parse(md) as string;

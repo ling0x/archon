@@ -3,20 +3,18 @@ import { renderAnswerMarkdown } from '../markdown';
 import type { SearchResult } from '../searxng';
 import { escapeHtml } from '../utils/html';
 
-function fillTurnQueryRow(row: HTMLElement, query: string, model?: string): void {
+function fillTurnQueryRow(row: HTMLElement, query: string, model: string): void {
   row.textContent = '';
   const qSpan = document.createElement('span');
   qSpan.className = 'turn-query-text';
   qSpan.textContent = query;
   row.appendChild(qSpan);
-  const m = model?.trim();
-  if (m) {
-    const tag = document.createElement('span');
-    tag.className = 'turn-model-tag';
-    tag.textContent = m;
-    tag.title = `Model: ${m}`;
-    row.appendChild(tag);
-  }
+  const label = model.trim();
+  const tag = document.createElement('span');
+  tag.className = 'turn-model-tag';
+  tag.textContent = label;
+  tag.title = `Model: ${label}`;
+  row.appendChild(tag);
 }
 
 function renderSourcesList(parent: HTMLElement, results: SearchResult[]): void {
@@ -101,7 +99,7 @@ function createFollowupSlot(isLast: boolean): HTMLElement {
   const modelSel = document.createElement('select');
   modelSel.className = 'composer-model-select';
   modelSel.setAttribute('aria-label', 'Ollama model');
-  const sid = `followup-model-${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())}`;
+  const sid = `followup-model-${crypto.randomUUID()}`;
   label.htmlFor = sid;
   modelSel.id = sid;
 

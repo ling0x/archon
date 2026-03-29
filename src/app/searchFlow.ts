@@ -44,6 +44,17 @@ function priorTurnsForPrompt(chatId: string | null): PriorTurn[] {
 
 const PLACEHOLDER_FOLLOW = 'Ask a follow-up…';
 
+const MAX_QUERY_STATUS_LEN = 320;
+
+/** Single-line, length-capped query text for status under the composer. */
+function formatSearchQueryForStatus(q: string): string {
+  const oneLine = q.trim().replace(/\s+/g, ' ');
+  if (!oneLine) return '(empty query)';
+  return oneLine.length > MAX_QUERY_STATUS_LEN
+    ? `${oneLine.slice(0, MAX_QUERY_STATUS_LEN - 1)}…`
+    : oneLine;
+}
+
 export async function runSearch(query: string, deps: SearchFlowDeps): Promise<void> {
   const { status, statusSlot, conversation, history, input, mainEl, modelSelect } =
     deps;
@@ -76,20 +87,27 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
 
   setComposerBusyState(mainEl, 'searching');
 
+  const qStatus = formatSearchQueryForStatus(searchQuery);
   let results: SearchResult[] = [];
 
   try {
-    status.set('Searching the web via SearXNG…');
+    status.set(
+      `Searching the web via SearXNG…\nQuery: ${qStatus}`,
+    );
     results = await searchSearXNG(searchQuery);
 
     if (results.length === 0) {
-      status.set('No search results found. Asking Ollama anyway…');
+      status.set(
+        `No search results found for:\n${qStatus}\nAsking Ollama anyway…`,
+      );
     } else {
-      status.set(`Found ${results.length} results. Generating answer…`);
+      status.set(
+        `Found ${results.length} result${results.length === 1 ? '' : 's'} for:\n${qStatus}\nGenerating answer…`,
+      );
     }
   } catch (err) {
     status.set(
-      `Search failed: ${(err as Error).message}. Attempting to answer without search results…`,
+      `Search failed for:\n${qStatus}\n${(err as Error).message}\nAttempting to answer without search results…`,
       true,
     );
   }

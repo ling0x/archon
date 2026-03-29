@@ -1,4 +1,4 @@
-import type { SearchResult } from "./searxng";
+import type { SearchResult } from './searxng';
 
 export interface ChatTurn {
   id: string;
@@ -6,8 +6,7 @@ export interface ChatTurn {
   query: string;
   answerRaw: string;
   sources: SearchResult[];
-  /** Ollama model id used for this answer (and query formulation on follow-ups). */
-  model?: string;
+  model: string;
   error?: string;
 }
 
@@ -18,29 +17,56 @@ export interface ChatRecord {
   turns: ChatTurn[];
 }
 
-const KEY = "archon-chats-v1";
+const KEY = 'archon-chats-v2';
 const MAX_CHATS = 100;
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
-function parseChatRecord(raw: unknown): ChatRecord | null {
-  if (raw === null || typeof raw !== "object") return null;
-  const o = raw as Record<string, unknown>;
-  if (!Array.isArray(o.turns) || o.turns.length === 0) return null;
+function isSearchResult(raw: unknown): raw is SearchResult {
+  if (raw === null || typeof raw !== 'object') return false;
+  const r = raw as Record<string, unknown>;
+  return (
+    typeof r.title === 'string' &&
+    typeof r.url === 'string' &&
+    typeof r.content === 'string'
+  );
+}
 
+function isChatTurn(raw: unknown): raw is ChatTurn {
+  if (raw === null || typeof raw !== 'object') return false;
+  const t = raw as Record<string, unknown>;
+  if (
+    typeof t.id !== 'string' ||
+    typeof t.createdAt !== 'number' ||
+    typeof t.query !== 'string' ||
+    typeof t.answerRaw !== 'string' ||
+    typeof t.model !== 'string' ||
+    !Array.isArray(t.sources) ||
+    !t.sources.every(isSearchResult)
+  ) {
+    return false;
+  }
+  if (t.error !== undefined && typeof t.error !== 'string') return false;
+  return true;
+}
+
+function parseChatRecord(raw: unknown): ChatRecord | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.id !== 'string' || o.id.length === 0) return null;
+  if (typeof o.createdAt !== 'number') return null;
+  if (!Array.isArray(o.turns) || o.turns.length === 0) return null;
+  if (!o.turns.every(isChatTurn)) return null;
   const turns = o.turns as ChatTurn[];
   const lastTs = turns[turns.length - 1]?.createdAt;
 
   return {
-    id: String(o.id),
-    createdAt: Number(o.createdAt) || Date.now(),
+    id: o.id,
+    createdAt: o.createdAt,
     updatedAt:
-      Number(o.updatedAt) ||
-      Number(lastTs) ||
-      Number(o.createdAt) ||
-      Date.now(),
+      typeof o.updatedAt === 'number' ? o.updatedAt : lastTs ?? o.createdAt,
     turns,
   };
 }
@@ -68,7 +94,7 @@ export function getChatById(id: string): ChatRecord | undefined {
 }
 
 export function chatTitle(chat: ChatRecord): string {
-  return chat.turns[0]?.query?.trim() || "Untitled";
+  return chat.turns[0]?.query?.trim() || 'Untitled';
 }
 
 export function chatHasError(chat: ChatRecord): boolean {
@@ -76,7 +102,7 @@ export function chatHasError(chat: ChatRecord): boolean {
 }
 
 export function createTurn(
-  partial: Omit<ChatTurn, "id" | "createdAt"> & {
+  partial: Omit<ChatTurn, 'id' | 'createdAt'> & {
     id?: string;
     createdAt?: number;
   },
