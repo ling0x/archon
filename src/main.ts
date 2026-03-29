@@ -39,6 +39,22 @@ el.newChatBtn.addEventListener('click', () => chatSession.beginNew());
 
 sidebar.bind();
 
+/** Enter submits; Shift+Enter inserts a newline (IME-safe). */
+el.mainEl.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || e.shiftKey) return;
+  if (e.isComposing) return;
+  const t = e.target;
+  if (!(t instanceof HTMLTextAreaElement)) return;
+  if (!t.classList.contains('composer-input')) return;
+  if (t.disabled || t.classList.contains('is-followup-inactive')) return;
+  e.preventDefault();
+  if (!t.value.trim()) return;
+  const form = t.form;
+  if (form && (form.id === 'search-form' || form.classList.contains('turn-followup'))) {
+    form.requestSubmit();
+  }
+});
+
 function getQueryFromForm(form: HTMLFormElement): {
   input: HTMLTextAreaElement;
   query: string;

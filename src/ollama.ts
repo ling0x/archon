@@ -22,6 +22,12 @@ export function buildPriorBlock(priorTurns: readonly PriorTurn[]): string {
   ].join('\n');
 }
 
+/** Model dedicated to turning user intent into SearXNG sub-queries (not the answer model). */
+export const SEARCH_FORMULATION_MODEL = 'qwen3.5:9b';
+
+const MAX_SUB_QUERIES = 3;
+const MAX_SUBQUERY_LEN = 200;
+
 function sanitizeSearchQueryLine(raw: string, fallback: string): string {
   let s = raw.trim();
   if (
@@ -32,41 +38,80 @@ function sanitizeSearchQueryLine(raw: string, fallback: string): string {
   }
   const line = s.split(/\r?\n/)[0]?.trim() ?? '';
   if (!line) return fallback;
-  return line.slice(0, 400);
+  return line.slice(0, MAX_SUBQUERY_LEN);
+}
+
+function stripJsonFence(s: string): string {
+  const t = s.trim();
+  if (!t.startsWith('```')) return t;
+  return t
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/u, '')
+    .trim();
+}
+
+function parseQueriesFromModelResponse(raw: string, fallback: string): string[] {
+  const text = stripJsonFence(raw);
+  try {
+    const parsed = JSON.parse(text) as unknown;
+    if (Array.isArray(parsed)) {
+      const out: string[] = [];
+      for (const item of parsed) {
+        if (typeof item !== 'string') continue;
+        const q = sanitizeSearchQueryLine(item, '');
+        if (q) out.push(q);
+        if (out.length >= MAX_SUB_QUERIES) break;
+      }
+      const uniq = [...new Set(out)];
+      if (uniq.length > 0) return uniq;
+    }
+  } catch {
+    /* try line split */
+  }
+
+  const lines = text
+    .split(/\n/)
+    .map((l) => sanitizeSearchQueryLine(l, ''))
+    .filter(Boolean);
+  const fromLines = [...new Set(lines)].slice(0, MAX_SUB_QUERIES);
+  if (fromLines.length > 0) return fromLines;
+
+  return [sanitizeSearchQueryLine(fallback, fallback)];
 }
 
 /**
- * Turn a follow-up message plus conversation history into a short SearXNG-friendly query.
+ * Split the user’s message (with optional prior turns) into 1–3 SearXNG sub-queries using a fixed small model.
  */
-export async function formulateSearchQuery(
+export async function formulateSearchQueries(
   userMessage: string,
   priorTurns: readonly PriorTurn[],
-  model = 'gpt-oss:20b',
-): Promise<string> {
+): Promise<string[]> {
   const prior = buildPriorBlock(priorTurns);
   const system = [
-    'You write concise web search queries for a search engine (SearXNG).',
-    'Reply with a single line only: search keywords and short phrases, no quotes, no labels like "Query:", no explanation.',
-    'Use the prior conversation so vague follow-ups (e.g. "the second option", "more on that") become a concrete, searchable query.',
-    'If the latest message is already a good search phrase, output it or improve it slightly.',
+    'You split an information need into 1–3 short web search queries for SearXNG.',
+    'Reply with ONLY a JSON array of strings, for example: ["rust async book", "tokio tutorial"].',
+    'No markdown code fences, no object wrapper, no commentary. Maximum 3 strings.',
+    'Each string must be a single line: search keywords and short phrases only, under 120 characters.',
+    'If one query is enough, return a one-element array.',
+    'Use prior conversation when the latest message is vague (e.g. "the second option", "more on that").',
   ].join(' ');
 
   const prompt = [
     prior,
     `Latest user message: ${userMessage}`,
     '',
-    'Output only the search query text.',
+    'Output only the JSON array.',
   ].join('\n');
 
   const res = await fetch('/ollama/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model,
+      model: SEARCH_FORMULATION_MODEL,
       system,
       prompt,
       stream: false,
-      options: { temperature: 0.2, num_predict: 160 },
+      options: { temperature: 0.15, num_predict: 320 },
     }),
   });
 
@@ -77,11 +122,11 @@ export async function formulateSearchQuery(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = (await res.json()) as any;
   const text = typeof data.response === 'string' ? data.response : '';
-  return sanitizeSearchQueryLine(text, userMessage);
+  return parseQueriesFromModelResponse(text, userMessage);
 }
 
 export type StreamAnswerOptions = {
-  /** Actual SearXNG query used (esp. after formulateSearchQuery on follow-ups). */
+  /** Sub-queries passed to SearXNG (shown to the answer model for transparency). */
   searchQueryUsed?: string;
 };
 
@@ -105,7 +150,7 @@ export async function* streamOllamaAnswer(
   const searchQueryNote =
     options?.searchQueryUsed &&
     options.searchQueryUsed.trim().length > 0
-      ? `Web pages below were retrieved using this search query: ${options.searchQueryUsed.trim()}\n\n`
+      ? `Web pages below were retrieved using these search queries: ${options.searchQueryUsed.trim()}\n\n`
       : '';
 
   const userMessage = [

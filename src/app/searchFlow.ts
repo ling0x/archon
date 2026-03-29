@@ -6,11 +6,12 @@ import {
 } from '../chatStorage';
 import { buildSearchContext } from '../context/buildSearchContext';
 import {
-  formulateSearchQuery,
+  formulateSearchQueries,
+  SEARCH_FORMULATION_MODEL,
   streamOllamaAnswer,
   type PriorTurn,
 } from '../ollama';
-import { searchSearXNG, type SearchResult } from '../searxng';
+import { searchSearXNGMulti, type SearchResult } from '../searxng';
 import { getCurrentChatId, setCurrentChatId } from '../session';
 import type { ChatHistoryView } from '../ui/chatHistory';
 import type { ConversationView } from '../ui/conversation';
@@ -55,6 +56,15 @@ function formatSearchQueryForStatus(q: string): string {
     : oneLine;
 }
 
+function formatMultiQueryStatusBlock(queries: readonly string[]): string {
+  if (queries.length === 1) {
+    return `Query: ${formatSearchQueryForStatus(queries[0])}`;
+  }
+  return `Queries (${queries.length}):\n${queries
+    .map((q, i) => `${i + 1}. ${formatSearchQueryForStatus(q)}`)
+    .join('\n')}`;
+}
+
 export async function runSearch(query: string, deps: SearchFlowDeps): Promise<void> {
   const { status, statusSlot, conversation, history, input, mainEl, modelSelect } =
     deps;
@@ -74,41 +84,37 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
 
   const priorTurns = priorTurnsForPrompt(isFollowUp ? threadId : null);
 
-  let searchQuery = query;
-  if (isFollowUp && priorTurns.length > 0) {
-    setComposerBusyState(mainEl, 'formulating');
-    status.set('Formulating search query from conversation…');
-    try {
-      searchQuery = await formulateSearchQuery(query, priorTurns, model);
-    } catch {
-      searchQuery = query;
-    }
+  setComposerBusyState(mainEl, 'formulating');
+  status.set(`Formulating search queries (${SEARCH_FORMULATION_MODEL})…`);
+
+  let searchQueries: string[] = [query];
+  try {
+    searchQueries = await formulateSearchQueries(query, priorTurns);
+  } catch {
+    searchQueries = [query];
+  }
+  if (searchQueries.length === 0) {
+    searchQueries = [query];
   }
 
   setComposerBusyState(mainEl, 'searching');
 
-  const qStatus = formatSearchQueryForStatus(searchQuery);
-  let results: SearchResult[] = [];
+  const qStatusBlock = formatMultiQueryStatusBlock(searchQueries);
+  const searchQueriesNote = searchQueries.join(' · ');
 
-  try {
+  status.set(`Searching the web via SearXNG…\n${qStatusBlock}`);
+  const results = await searchSearXNGMulti(searchQueries, {
+    perQuery: 8,
+    maxTotal: 16,
+  });
+
+  if (results.length === 0) {
     status.set(
-      `Searching the web via SearXNG…\nQuery: ${qStatus}`,
+      `No search results found for:\n${qStatusBlock}\nAsking Ollama anyway…`,
     );
-    results = await searchSearXNG(searchQuery);
-
-    if (results.length === 0) {
-      status.set(
-        `No search results found for:\n${qStatus}\nAsking Ollama anyway…`,
-      );
-    } else {
-      status.set(
-        `Found ${results.length} result${results.length === 1 ? '' : 's'} for:\n${qStatus}\nGenerating answer…`,
-      );
-    }
-  } catch (err) {
+  } else {
     status.set(
-      `Search failed for:\n${qStatus}\n${(err as Error).message}\nAttempting to answer without search results…`,
-      true,
+      `Found ${results.length} unique result${results.length === 1 ? '' : 's'} (merged from ${searchQueries.length} search${searchQueries.length === 1 ? '' : 'es'})\n${qStatusBlock}\nGenerating answer…`,
     );
   }
 
@@ -124,7 +130,7 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
       context,
       priorTurns,
       model,
-      isFollowUp ? { searchQueryUsed: searchQuery } : undefined,
+      { searchQueryUsed: searchQueriesNote },
     )) {
       answerRaw += token;
       turnUi.setAnswerMarkdown(answerRaw);
