@@ -6,20 +6,42 @@ export interface OllamaStreamChunk {
 
 export type PriorTurn = { query: string; answer: string };
 
-export function buildPriorBlock(priorTurns: readonly PriorTurn[]): string {
-  if (priorTurns.length === 0) return '';
-  const body = priorTurns
-    .map(
-      (t, i) =>
-        `Turn ${i + 1}\nUser: ${t.query}\nAssistant: ${t.answer}`,
-    )
-    .join('\n\n');
+/** Keeps follow-ups from anchoring on long prior answers; formulation uses `buildPriorBlock`. */
+const PRIOR_ANSWER_TRUNCATE_CHARS = 480;
+
+function wrapPriorConversationBlock(body: string): string {
   return [
     '--- Earlier in this conversation ---',
     body,
     '--- End earlier conversation ---',
     '',
   ].join('\n');
+}
+
+/** Full prior turns for search-query formulation. */
+export function buildPriorBlock(priorTurns: readonly PriorTurn[]): string {
+  if (priorTurns.length === 0) return '';
+  const body = priorTurns
+    .map(
+      (t, i) => `Turn ${i + 1}\nUser: ${t.query}\nAssistant: ${t.answer}`,
+    )
+    .join('\n\n');
+  return wrapPriorConversationBlock(body);
+}
+
+/** Truncated prior turns for the answer model only. */
+function buildPriorBlockTruncated(priorTurns: readonly PriorTurn[]): string {
+  if (priorTurns.length === 0) return '';
+  const body = priorTurns
+    .map((t, i) => {
+      let ans = t.answer;
+      if (ans.length > PRIOR_ANSWER_TRUNCATE_CHARS) {
+        ans = `${ans.slice(0, PRIOR_ANSWER_TRUNCATE_CHARS).trimEnd()}…`;
+      }
+      return `Turn ${i + 1}\nUser: ${t.query}\nAssistant: ${ans}`;
+    })
+    .join('\n\n');
+  return wrapPriorConversationBlock(body);
 }
 
 /** Model dedicated to turning user intent into SearXNG sub-queries (not the answer model). */
@@ -126,32 +148,50 @@ export async function formulateSearchQueries(
 }
 
 export type StreamAnswerOptions = {
-  /** Sub-queries passed to SearXNG (shown to the answer model for transparency). */
+  hasSearchResults: boolean;
   searchQueryUsed?: string;
 };
+
+const SYSTEM_PROMPT_GROUNDED = [
+  'You are a careful assistant that answers using the numbered web search excerpts below.',
+  'Ground every non-obvious factual claim in those excerpts; after each such claim, cite the source index with [[n]] (e.g. [[2]]) matching the bracket number shown before each result.',
+  'Use only citation indices that exist in the excerpt list; never invent [[n]] numbers or URLs not listed.',
+  'If excerpts conflict, say so briefly and reflect both sides or explain the uncertainty.',
+  'If excerpts are insufficient for the question, say so clearly instead of guessing.',
+  'Earlier conversation turns may be truncated; they are for context only. If anything there disagrees with the excerpts for the current question, trust the excerpts.',
+].join(' ');
+
+const SYSTEM_PROMPT_NO_RESULTS = [
+  'No web search results were retrieved for this question.',
+  'Do not invent specific facts, statistics, dates, quotes, or URLs as if they came from the web.',
+  'Briefly explain that nothing was found, suggest rephrasing or different keywords, and only then offer very general non-specific guidance if helpful.',
+].join(' ');
 
 export async function* streamOllamaAnswer(
   query: string,
   searchContext: string,
-  priorTurns: PriorTurn[] = [],
-  model = 'gpt-oss:20b',
-  options?: StreamAnswerOptions,
+  priorTurns: readonly PriorTurn[],
+  model: string,
+  options: StreamAnswerOptions,
 ): AsyncGenerator<string> {
-  const systemPrompt = [
-    'You are a helpful assistant that answers questions based on provided web search results.',
-    'Use the search results below as your primary source of information for the current question.',
-    'Be concise, accurate, and cite facts from the sources when relevant.',
-    'If the search results are not sufficient, say so clearly.',
-    'When the user asks a follow-up, use earlier conversation turns only for context; still ground answers in the search results for the current question.',
-  ].join(' ');
+  const hasSearch = options.hasSearchResults;
+  const systemPrompt = hasSearch ? SYSTEM_PROMPT_GROUNDED : SYSTEM_PROMPT_NO_RESULTS;
 
-  const prior = buildPriorBlock(priorTurns);
+  const prior = buildPriorBlockTruncated(priorTurns);
 
+  const sq = options.searchQueryUsed?.trim() ?? '';
   const searchQueryNote =
-    options?.searchQueryUsed &&
-    options.searchQueryUsed.trim().length > 0
-      ? `Web pages below were retrieved using these search queries: ${options.searchQueryUsed.trim()}\n\n`
-      : '';
+    sq.length === 0
+      ? ''
+      : hasSearch
+        ? `Web pages below were retrieved using these search queries: ${sq}\n\n`
+        : `Web search was attempted (no results) with: ${sq}\n\n`;
+
+  const resultsBody = hasSearch
+    ? searchContext.trim().length > 0
+      ? searchContext
+      : '(No excerpt text was returned for the retrieved URLs.)'
+    : '(No pages were retrieved — the search returned zero results.)';
 
   const userMessage = [
     prior,
@@ -159,10 +199,12 @@ export async function* streamOllamaAnswer(
     `Current question: ${query}`,
     '',
     '--- Search Results ---',
-    searchContext,
+    resultsBody,
     '--- End of Search Results ---',
     '',
-    'Answer the current question using the search results above.',
+    hasSearch
+      ? 'Answer the current question using the search results above, with [[n]] citations as specified.'
+      : 'Follow the instructions for the no-results case.',
   ].join('\n');
 
   const res = await fetch('/ollama/api/generate', {
@@ -173,6 +215,12 @@ export async function* streamOllamaAnswer(
       system: systemPrompt,
       prompt: userMessage,
       stream: true,
+      options: {
+        temperature: 0.2,
+        top_p: 0.9,
+        repeat_penalty: 1.05,
+        num_ctx: 8192,
+      },
     }),
   });
 

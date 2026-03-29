@@ -17,7 +17,7 @@ export interface ChatRecord {
   turns: ChatTurn[];
 }
 
-const KEY = 'archon-chats-v2';
+const KEY = 'archon-chats-v3';
 const MAX_CHATS = 100;
 
 function generateId(): string {
@@ -27,11 +27,18 @@ function generateId(): string {
 function isSearchResult(raw: unknown): raw is SearchResult {
   if (raw === null || typeof raw !== 'object') return false;
   const r = raw as Record<string, unknown>;
-  return (
-    typeof r.title === 'string' &&
-    typeof r.url === 'string' &&
-    typeof r.content === 'string'
-  );
+  if (
+    typeof r.title !== 'string' ||
+    typeof r.url !== 'string' ||
+    typeof r.content !== 'string'
+  ) {
+    return false;
+  }
+  if (r.publishedDate !== undefined && typeof r.publishedDate !== 'string') {
+    return false;
+  }
+  if (r.engine !== undefined && typeof r.engine !== 'string') return false;
+  return true;
 }
 
 function isChatTurn(raw: unknown): raw is ChatTurn {
@@ -59,14 +66,13 @@ function parseChatRecord(raw: unknown): ChatRecord | null {
   if (typeof o.createdAt !== 'number') return null;
   if (!Array.isArray(o.turns) || o.turns.length === 0) return null;
   if (!o.turns.every(isChatTurn)) return null;
+  if (typeof o.updatedAt !== 'number') return null;
   const turns = o.turns as ChatTurn[];
-  const lastTs = turns[turns.length - 1]?.createdAt;
 
   return {
     id: o.id,
     createdAt: o.createdAt,
-    updatedAt:
-      typeof o.updatedAt === 'number' ? o.updatedAt : lastTs ?? o.createdAt,
+    updatedAt: o.updatedAt,
     turns,
   };
 }

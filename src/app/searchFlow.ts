@@ -110,7 +110,7 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
 
   if (results.length === 0) {
     status.set(
-      `No search results found for:\n${qStatusBlock}\nAsking Ollama anyway…`,
+      `No search results found for:\n${qStatusBlock}\nAnswering in no-web-results mode…`,
     );
   } else {
     status.set(
@@ -130,7 +130,10 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
       context,
       priorTurns,
       model,
-      { searchQueryUsed: searchQueriesNote },
+      {
+        searchQueryUsed: searchQueriesNote,
+        hasSearchResults: results.length > 0,
+      },
     )) {
       answerRaw += token;
       turnUi.setAnswerMarkdown(answerRaw);
