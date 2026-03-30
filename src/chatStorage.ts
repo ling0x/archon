@@ -24,7 +24,6 @@ export interface ChatRecord {
 }
 
 const KEY = 'archon-chats-v6';
-const LEGACY_KEY = 'archon-chats-v5';
 const MAX_CHATS = 100;
 
 /** Parsed thread list; invalidated on every save. Avoids re-parsing JSON on hot paths. */
@@ -85,15 +84,7 @@ function parseChatRecord(raw: unknown): ChatRecord | null {
 
 function readStorage(): ChatRecord[] {
   try {
-    let raw = localStorage.getItem(KEY);
-    if (!raw) {
-      const legacy = localStorage.getItem(LEGACY_KEY);
-      if (legacy) {
-        raw = legacy;
-        localStorage.setItem(KEY, legacy);
-        localStorage.removeItem(LEGACY_KEY);
-      }
-    }
+    const raw = localStorage.getItem(KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];

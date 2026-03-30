@@ -509,8 +509,7 @@ export function createConversationView(
 
         const qEl = document.createElement('div');
         qEl.className = 'turn-query';
-        const showReasoning =
-          turn.thinkingCapable === true || Boolean(turn.thinkingRaw?.trim());
+        const showReasoning = turn.thinkingCapable === true;
         fillTurnQueryRowWithFinalTime(
           qEl,
           turn.query,
