@@ -169,6 +169,39 @@ function createTurnAnswerFooter(): HTMLElement {
   return footer;
 }
 
+function fallbackCopyText(text: string): boolean {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+async function copyTextToClipboard(text: string): Promise<boolean> {
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      return fallbackCopyText(text);
+    }
+  }
+  return fallbackCopyText(text);
+}
+
+const COPY_BTN_TITLE_DEFAULT = 'Copy code';
+const COPY_BTN_TITLE_OK = 'Copied to clipboard';
+const COPY_BTN_TITLE_ERR = 'Copy failed';
+
 function renderReferencesSection(parent: HTMLElement, results: SearchResult[]): void {
   parent.innerHTML = '';
   if (results.length === 0) {
@@ -337,6 +370,37 @@ export function createConversationView(
   container: HTMLElement,
   section: HTMLElement,
 ): ConversationView {
+  const copyResetTimers = new WeakMap<HTMLButtonElement, number>();
+  container.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const btn = target.closest<HTMLButtonElement>('button.code-copy-button');
+    if (!btn) return;
+
+    const pre = btn.closest('pre');
+    const code = pre?.querySelector('code');
+    const text = code?.textContent ?? '';
+    if (!text) return;
+
+    void (async () => {
+      const copied = await copyTextToClipboard(text);
+      btn.classList.toggle('is-copied', copied);
+      btn.classList.toggle('is-error', !copied);
+      const title = copied ? COPY_BTN_TITLE_OK : COPY_BTN_TITLE_ERR;
+      btn.title = title;
+      btn.setAttribute('aria-label', title);
+
+      const prevTimer = copyResetTimers.get(btn);
+      if (prevTimer != null) window.clearTimeout(prevTimer);
+      const nextTimer = window.setTimeout(() => {
+        btn.classList.remove('is-copied', 'is-error');
+        btn.title = COPY_BTN_TITLE_DEFAULT;
+        btn.setAttribute('aria-label', COPY_BTN_TITLE_DEFAULT);
+      }, copied ? 1400 : 1800);
+      copyResetTimers.set(btn, nextTimer);
+    })();
+  });
+
   function scrollToBottom() {
     container.scrollTop = container.scrollHeight;
   }
