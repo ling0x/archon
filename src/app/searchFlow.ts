@@ -151,6 +151,18 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
   setComposerBusyState(mainEl, 'thinking');
 
   const genStart = performance.now();
+  const buildTurn = (generationMs: number, errorMsg?: string) =>
+    createTurn({
+      query,
+      answerRaw,
+      thinkingRaw: thinkingRaw.trim() || undefined,
+      ...(thinkingCapable ? { thinkingCapable: true as const } : {}),
+      sources: results,
+      model,
+      generationMs,
+      ...(errorMsg ? { error: errorMsg } : {}),
+    });
+
   try {
     const context = buildSearchContext(results);
     const think = thinkingCapable ? defaultThinkParameter(model) : undefined;
@@ -177,16 +189,7 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
     status.clear();
 
     const generationMs = Math.max(0, Math.round(performance.now() - genStart));
-    const turn = createTurn({
-      query,
-      answerRaw,
-      thinkingRaw: thinkingRaw.trim() || undefined,
-      ...(thinkingCapable ? { thinkingCapable: true } : {}),
-      sources: results,
-      model,
-      generationMs,
-    });
-    commitTurnAndRefreshUi(turn, isFollowUp, threadId, {
+    commitTurnAndRefreshUi(buildTurn(generationMs), isFollowUp, threadId, {
       conversation,
       history,
       mainEl,
@@ -196,17 +199,7 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
     status.set(`Ollama error: ${msg}`, true);
 
     const generationMs = Math.max(0, Math.round(performance.now() - genStart));
-    const turn = createTurn({
-      query,
-      answerRaw,
-      thinkingRaw: thinkingRaw.trim() || undefined,
-      ...(thinkingCapable ? { thinkingCapable: true } : {}),
-      sources: results,
-      model,
-      error: msg,
-      generationMs,
-    });
-    commitTurnAndRefreshUi(turn, isFollowUp, threadId, {
+    commitTurnAndRefreshUi(buildTurn(generationMs, msg), isFollowUp, threadId, {
       conversation,
       history,
       mainEl,

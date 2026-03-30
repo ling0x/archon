@@ -142,9 +142,10 @@ function mountTurnQueryShell(
   trailing.appendChild(tag);
   if (showReasoningTag) {
     const r = document.createElement('span');
-    r.className = 'composer-reasoning-tag';
+    r.className = 'turn-model-tag';
     r.textContent = 'Reasoning';
-    r.title = 'This model can stream a separate reasoning trace from Ollama';
+    r.title = 'This answer includes a model reasoning trace';
+    r.setAttribute('aria-label', 'Reasoning');
     trailing.appendChild(r);
   }
   row.append(qSpan, trailing);
