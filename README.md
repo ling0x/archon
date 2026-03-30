@@ -90,3 +90,15 @@ npm run preview
 
 For production you'll need a reverse proxy (nginx / Caddy) to forward `/searxng`
 and `/ollama` paths.
+
+## Screenshots
+
+Main search input and chat interface while a reply streams in with model and
+timer for generating answers.
+
+<img src="static/ui.png" alt="Archon main UI" width="800" />
+
+Answer with numbered web citations shown under the streamed response with link
+to source and which search engine they came from.
+
+<img src="static/ui_citations.png" alt="Archon UI with citations" width="800" />
