@@ -23,7 +23,7 @@
 .turn-followup-strip {
   margin-top: 0.25rem;
   padding-top: 0.85rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--tap);
   margin-bottom: 0;
 }
 
@@ -56,7 +56,7 @@
   font-weight: 500;
   color: var(--text);
   border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--shade-query);
   font-size: 0.95rem;
 }
 
@@ -87,8 +87,8 @@
   letter-spacing: 0.02em;
   text-transform: none;
   color: var(--accent-hover);
-  background: rgba(124, 106, 255, 0.14);
-  border: 1px solid rgba(124, 106, 255, 0.35);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -104,7 +104,7 @@
   letter-spacing: 0.04em;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--tap);
   border: 1px solid var(--border);
   white-space: nowrap;
 }
@@ -119,7 +119,7 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--tap);
   border: 1px solid var(--border);
   cursor: pointer;
   transition:
@@ -129,8 +129,8 @@
 }
 
 .turn-export-md:hover:not(:disabled) {
-  border-color: rgba(124, 106, 255, 0.45);
-  background: rgba(124, 106, 255, 0.12);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent-hover);
 }
 
@@ -142,7 +142,7 @@
 .turn-references {
   padding: 0 1rem;
   border-top: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.08);
+  background: var(--shade-refs);
 }
 
 .turn-references-details {
@@ -213,7 +213,7 @@
 }
 
 .turn-error-note {
-  color: #ff6b6b;
+  color: var(--error);
   margin: 0 0 0.75rem;
   font-size: 0.9rem;
   font-style: normal;
@@ -231,7 +231,7 @@
   justify-content: flex-end;
   padding: 0.55rem 1.1rem 0.85rem;
   border-top: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.12);
+  background: var(--shade-footer);
 }
 
 /* Markdown inside assistant replies */
@@ -292,8 +292,8 @@
   margin: 0.85rem 0;
   padding: 0.5rem 0 0.5rem 1rem;
   border-left: 3px solid var(--accent);
-  color: #c8c8d4;
-  background: rgba(124, 106, 255, 0.06);
+  color: var(--blockquote-fg);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
   border-radius: 0 var(--radius) var(--radius) 0;
 }
 
@@ -310,15 +310,15 @@
 .turn-answer.markdown-body a {
   color: var(--accent-hover);
   text-decoration: none;
-  border-bottom: 1px solid rgba(155, 141, 255, 0.45);
+  border-bottom: 1px solid var(--link-underline);
   transition:
     color 0.15s,
     border-color 0.15s;
 }
 
 .turn-answer.markdown-body a:hover {
-  color: #c4b8ff;
-  border-bottom-color: rgba(196, 184, 255, 0.7);
+  color: var(--link-hover-fg);
+  border-bottom-color: var(--link-hover-underline);
 }
 
 .turn-answer.markdown-body a.citation-link {
@@ -331,10 +331,10 @@
   font-family:
     ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.88em;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--code-inline-bg);
   padding: 0.15em 0.45em;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--code-inline-border);
 }
 
 .turn-answer.markdown-body pre.code-block {
@@ -354,7 +354,7 @@
   min-height: 2rem;
   padding: 0.35rem 0.45rem 0.35rem 0.55rem;
   border-bottom: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.28);
+  background: var(--code-head-bg);
 }
 
 .turn-answer.markdown-body .code-lang-label {
@@ -389,9 +389,9 @@
   height: 1.85rem;
   padding: 0;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: rgba(0, 0, 0, 0.32);
-  color: #d4d8e4;
+  border: 1px solid var(--copy-btn-border);
+  background: var(--copy-btn-bg);
+  color: var(--copy-btn-fg);
   cursor: pointer;
   opacity: 0.42;
   transition:
@@ -443,21 +443,21 @@
 }
 
 .turn-answer.markdown-body .code-copy-button:hover {
-  background: rgba(124, 106, 255, 0.2);
-  border-color: rgba(155, 141, 255, 0.55);
-  color: #efecff;
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: color-mix(in srgb, var(--accent-hover) 55%, transparent);
+  color: var(--copy-btn-hover-fg);
 }
 
 .turn-answer.markdown-body .code-copy-button.is-copied {
   border-color: rgba(72, 199, 142, 0.55);
   background: rgba(72, 199, 142, 0.18);
-  color: #d8ffef;
+  color: var(--copy-btn-success-fg);
 }
 
 .turn-answer.markdown-body .code-copy-button.is-error {
   border-color: rgba(255, 107, 107, 0.55);
   background: rgba(255, 107, 107, 0.16);
-  color: #ffd9d9;
+  color: var(--copy-btn-error-fg);
 }
 
 .turn-answer.markdown-body table {
@@ -475,12 +475,12 @@
 }
 
 .turn-answer.markdown-body th {
-  background: rgba(124, 106, 255, 0.1);
+  background: var(--accent-soft);
   font-weight: 600;
 }
 
 .turn-answer.markdown-body tr:nth-child(even) td {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--table-stripe);
 }
 
 .turn-answer.markdown-body img {
@@ -507,7 +507,7 @@
   display: flex;
   align-items: flex-start;
   gap: 0.45rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--ref-link-bg);
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
   padding: 0.4rem 0.6rem;
@@ -573,8 +573,8 @@
     ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
   padding: 0.08rem 0.32rem;
   border-radius: 4px;
-  background: rgba(124, 106, 255, 0.1);
-  border: 1px solid rgba(124, 106, 255, 0.22);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border-soft);
   line-height: 1.2;
 }
 
@@ -585,6 +585,6 @@
 
 .turn-ref-link:hover .turn-ref-engine {
   color: var(--accent-hover);
-  border-color: rgba(155, 141, 255, 0.4);
+  border-color: var(--accent-border-hover);
   opacity: 0.95;
 }

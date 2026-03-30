@@ -19,6 +19,7 @@ export type AppElements = {
   chatHistoryEl: HTMLUListElement;
   sidebarOpenBtn: HTMLButtonElement;
   sidebarBackdrop: HTMLElement;
+  themeToggleBtn: HTMLButtonElement;
 };
 
 export function getAppElements(): AppElements {
@@ -37,5 +38,6 @@ export function getAppElements(): AppElements {
     chatHistoryEl: req<HTMLUListElement>('chat-history'),
     sidebarOpenBtn: req<HTMLButtonElement>('sidebar-open-btn'),
     sidebarBackdrop: req('sidebar-backdrop'),
+    themeToggleBtn: req<HTMLButtonElement>('theme-toggle-btn'),
   };
 }

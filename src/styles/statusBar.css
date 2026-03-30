@@ -15,6 +15,6 @@
 }
 
 .composer-status.error {
-  color: #ff6b6b;
+  color: var(--error);
   font-style: normal;
 }

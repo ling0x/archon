@@ -4,8 +4,6 @@ import { marked } from 'marked';
 
 import type { SearchResult } from './searxng';
 
-import 'highlight.js/styles/github-dark.css';
-
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

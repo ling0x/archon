@@ -19,12 +19,12 @@
 }
 
 .chat-history-item:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--history-hover);
 }
 
 .chat-history-item.active {
-  background: rgba(124, 106, 255, 0.12);
-  border-color: rgba(124, 106, 255, 0.35);
+  background: var(--accent-chip-bg);
+  border-color: var(--accent-chip-border);
 }
 
 .chat-history-title {

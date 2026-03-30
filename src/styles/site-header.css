@@ -34,6 +34,34 @@
   border-color: var(--accent);
 }
 
+.theme-toggle-btn {
+  display: flex;
+  position: absolute;
+  right: 0;
+  top: 0;
+  z-index: 2;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color 0.2s,
+    background 0.2s;
+}
+
+.theme-toggle-btn:hover {
+  border-color: var(--accent);
+}
+
 @media (max-width: 1200px) {
   .sidebar-open-btn {
     display: flex;
@@ -63,7 +91,7 @@
   object-fit: contain;
   flex-shrink: 0;
   border-radius: 50%;
-  box-shadow: 0 2px 12px rgba(124, 106, 255, 0.2);
+  box-shadow: 0 2px 12px var(--logo-glow);
 }
 
 .site-header-text {

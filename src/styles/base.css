@@ -7,6 +7,12 @@
 }
 
 :root {
+  --radius: 10px;
+  --font: "Inter", system-ui, sans-serif;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
   --bg: #0f0f0f;
   --surface: #1a1a1a;
   --border: #2e2e2e;
@@ -14,8 +20,79 @@
   --accent-hover: #9b8dff;
   --text: #e8e8e8;
   --muted: #888;
-  --radius: 10px;
-  --font: "Inter", system-ui, sans-serif;
+  --on-accent: #fff;
+  --error: #ff6b6b;
+  --tap: rgb(255 255 255 / 0.06);
+  --tap-strong: rgb(255 255 255 / 0.12);
+  --shade-query: rgb(255 255 255 / 0.02);
+  --shade-footer: rgb(0 0 0 / 0.12);
+  --shade-refs: rgb(0 0 0 / 0.08);
+  --code-inline-bg: rgb(0 0 0 / 0.35);
+  --code-inline-border: rgb(255 255 255 / 0.06);
+  --code-head-bg: rgb(0 0 0 / 0.28);
+  --blockquote-fg: #c8c8d4;
+  --link-underline: rgb(155 141 255 / 0.45);
+  --link-hover-fg: #c4b8ff;
+  --link-hover-underline: rgb(196 184 255 / 0.7);
+  --copy-btn-border: rgb(255 255 255 / 0.2);
+  --copy-btn-bg: rgb(0 0 0 / 0.32);
+  --copy-btn-fg: #d4d8e4;
+  --copy-btn-hover-fg: #efecff;
+  --copy-btn-success-fg: #d8ffef;
+  --copy-btn-error-fg: #ffd9d9;
+  --table-stripe: rgb(255 255 255 / 0.02);
+  --ref-link-bg: rgb(0 0 0 / 0.2);
+  --logo-glow: rgb(124 106 255 / 0.2);
+  --drawer-shadow: rgb(0 0 0 / 0.45);
+  --backdrop-scrim: rgb(0 0 0 / 0.55);
+  --history-hover: rgb(255 255 255 / 0.04);
+  --accent-chip-bg: rgb(124 106 255 / 0.12);
+  --accent-chip-border: rgb(124 106 255 / 0.35);
+  --accent-soft: rgb(124 106 255 / 0.1);
+  --accent-border-soft: rgb(124 106 255 / 0.22);
+  --accent-border-hover: rgb(155 141 255 / 0.4);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f4f4f6;
+  --surface: #ffffff;
+  --border: #e2e2ea;
+  --accent: #5b4fd4;
+  --accent-hover: #4f3fc9;
+  --text: #17171c;
+  --muted: #5c5c6e;
+  --on-accent: #fff;
+  --error: #d92d20;
+  --tap: rgb(0 0 0 / 0.06);
+  --tap-strong: rgb(0 0 0 / 0.1);
+  --shade-query: rgb(0 0 0 / 0.03);
+  --shade-footer: rgb(0 0 0 / 0.04);
+  --shade-refs: rgb(0 0 0 / 0.035);
+  --code-inline-bg: rgb(0 0 0 / 0.06);
+  --code-inline-border: rgb(0 0 0 / 0.1);
+  --code-head-bg: rgb(0 0 0 / 0.05);
+  --blockquote-fg: #45455a;
+  --link-underline: rgb(79 63 201 / 0.4);
+  --link-hover-fg: #3d2fb0;
+  --link-hover-underline: rgb(79 63 201 / 0.65);
+  --copy-btn-border: rgb(0 0 0 / 0.14);
+  --copy-btn-bg: rgb(255 255 255 / 0.9);
+  --copy-btn-fg: #3a3a48;
+  --copy-btn-hover-fg: #2a1f7a;
+  --copy-btn-success-fg: #0d4d32;
+  --copy-btn-error-fg: #9f1239;
+  --table-stripe: rgb(0 0 0 / 0.03);
+  --ref-link-bg: rgb(0 0 0 / 0.04);
+  --logo-glow: rgb(91 79 212 / 0.25);
+  --drawer-shadow: rgb(0 0 0 / 0.12);
+  --backdrop-scrim: rgb(0 0 0 / 0.35);
+  --history-hover: rgb(0 0 0 / 0.05);
+  --accent-chip-bg: rgb(91 79 212 / 0.12);
+  --accent-chip-border: rgb(91 79 212 / 0.28);
+  --accent-soft: rgb(91 79 212 / 0.08);
+  --accent-border-soft: rgb(91 79 212 / 0.18);
+  --accent-border-hover: rgb(79 63 201 / 0.38);
 }
 
 html,
@@ -48,7 +125,7 @@ body {
 }
 
 .error {
-  color: #ff6b6b !important;
+  color: var(--error) !important;
   font-style: normal !important;
 }
 

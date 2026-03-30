@@ -6,8 +6,14 @@ import { createChatHistoryView } from './ui/chatHistory';
 import { createMobileSidebar } from './ui/sidebar';
 import { createStatusBar, statusSlotForSubmittedForm } from './ui/statusBar';
 import { initModelSelect } from './modelPicker';
+import { initTheme, syncThemeToggleButton, toggleTheme } from './theme';
 
+const theme = initTheme();
 const el = getAppElements();
+syncThemeToggleButton(el.themeToggleBtn, theme);
+el.themeToggleBtn.addEventListener('click', () => {
+  syncThemeToggleButton(el.themeToggleBtn, toggleTheme());
+});
 
 const status = createStatusBar(el.statusEl, el.mainEl);
 const conversation = createConversationView(el.conversationEl, el.conversationSec);

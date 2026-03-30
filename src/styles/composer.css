@@ -56,7 +56,7 @@
 
 .composer-submit-btn {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border: none;
   border-radius: var(--radius);
   padding: 0.55rem 1.4rem;
