@@ -7,6 +7,8 @@ export interface ChatTurn {
   answerRaw: string;
   sources: SearchResult[];
   model: string;
+  /** Streaming time for the model reply (ms); excludes search/query formulation. */
+  generationMs: number;
   error?: string;
 }
 
@@ -17,8 +19,11 @@ export interface ChatRecord {
   turns: ChatTurn[];
 }
 
-const KEY = 'archon-chats-v3';
+const KEY = 'archon-chats-v5';
 const MAX_CHATS = 100;
+
+/** Parsed thread list; invalidated on every save. Avoids re-parsing JSON on hot paths. */
+let chatsCache: ChatRecord[] | null = null;
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
@@ -27,17 +32,11 @@ function generateId(): string {
 function isSearchResult(raw: unknown): raw is SearchResult {
   if (raw === null || typeof raw !== 'object') return false;
   const r = raw as Record<string, unknown>;
-  if (
-    typeof r.title !== 'string' ||
-    typeof r.url !== 'string' ||
-    typeof r.content !== 'string'
-  ) {
+  if (typeof r.title !== 'string' || typeof r.url !== 'string' || typeof r.content !== 'string') {
     return false;
   }
-  if (r.publishedDate !== undefined && typeof r.publishedDate !== 'string') {
-    return false;
-  }
-  if (r.engine !== undefined && typeof r.engine !== 'string') return false;
+  if (r.publishedDate != null && typeof r.publishedDate !== 'string') return false;
+  if (r.engine != null && typeof r.engine !== 'string') return false;
   return true;
 }
 
@@ -50,12 +49,14 @@ function isChatTurn(raw: unknown): raw is ChatTurn {
     typeof t.query !== 'string' ||
     typeof t.answerRaw !== 'string' ||
     typeof t.model !== 'string' ||
+    typeof t.generationMs !== 'number' ||
+    !Number.isFinite(t.generationMs) ||
     !Array.isArray(t.sources) ||
     !t.sources.every(isSearchResult)
   ) {
     return false;
   }
-  if (t.error !== undefined && typeof t.error !== 'string') return false;
+  if (t.error != null && typeof t.error !== 'string') return false;
   return true;
 }
 
@@ -63,35 +64,37 @@ function parseChatRecord(raw: unknown): ChatRecord | null {
   if (raw === null || typeof raw !== 'object') return null;
   const o = raw as Record<string, unknown>;
   if (typeof o.id !== 'string' || o.id.length === 0) return null;
-  if (typeof o.createdAt !== 'number') return null;
+  if (typeof o.createdAt !== 'number' || typeof o.updatedAt !== 'number') return null;
   if (!Array.isArray(o.turns) || o.turns.length === 0) return null;
   if (!o.turns.every(isChatTurn)) return null;
-  if (typeof o.updatedAt !== 'number') return null;
-  const turns = o.turns as ChatTurn[];
 
   return {
     id: o.id,
     createdAt: o.createdAt,
     updatedAt: o.updatedAt,
-    turns,
+    turns: o.turns as ChatTurn[],
   };
 }
 
-export function loadChats(): ChatRecord[] {
+function readStorage(): ChatRecord[] {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map(parseChatRecord)
-      .filter((c): c is ChatRecord => c !== null);
+    return parsed.map(parseChatRecord).filter((c): c is ChatRecord => c !== null);
   } catch {
     return [];
   }
 }
 
+export function loadChats(): ChatRecord[] {
+  if (!chatsCache) chatsCache = readStorage();
+  return chatsCache;
+}
+
 function saveChats(chats: ChatRecord[]): void {
+  chatsCache = chats;
   localStorage.setItem(KEY, JSON.stringify(chats));
 }
 
@@ -100,7 +103,8 @@ export function getChatById(id: string): ChatRecord | undefined {
 }
 
 export function chatTitle(chat: ChatRecord): string {
-  return chat.turns[0]?.query?.trim() || 'Untitled';
+  const q = chat.turns[0].query.trim();
+  return q.length > 0 ? q : 'Untitled';
 }
 
 export function chatHasError(chat: ChatRecord): boolean {
@@ -120,7 +124,8 @@ export function createTurn(
     answerRaw: partial.answerRaw,
     sources: partial.sources,
     model: partial.model,
-    error: partial.error,
+    generationMs: partial.generationMs,
+    ...(partial.error ? { error: partial.error } : {}),
   };
 }
 
@@ -131,20 +136,16 @@ export function createNewChatWithTurn(turn: ChatTurn): ChatRecord {
     updatedAt: Date.now(),
     turns: [turn],
   };
-  const chats = loadChats();
-  saveChats([rec, ...chats.filter((c) => c.id !== rec.id)].slice(0, MAX_CHATS));
+  saveChats([rec, ...loadChats()].slice(0, MAX_CHATS));
   return rec;
 }
 
-export function appendTurnToChat(
-  chatId: string,
-  turn: ChatTurn,
-): ChatRecord | null {
+export function appendTurnToChat(chatId: string, turn: ChatTurn): ChatRecord | null {
   const chats = loadChats();
   const idx = chats.findIndex((c) => c.id === chatId);
   if (idx === -1) return null;
 
-  const prev = chats[idx];
+  const prev = chats[idx]!;
   const updated: ChatRecord = {
     ...prev,
     updatedAt: Date.now(),

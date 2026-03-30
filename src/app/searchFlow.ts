@@ -3,6 +3,7 @@ import {
   createNewChatWithTurn,
   createTurn,
   getChatById,
+  type ChatTurn,
 } from '../chatStorage';
 import { buildSearchContext } from '../context/buildSearchContext';
 import {
@@ -65,6 +66,29 @@ function formatMultiQueryStatusBlock(queries: readonly string[]): string {
     .join('\n')}`;
 }
 
+function commitTurnAndRefreshUi(
+  turn: ChatTurn,
+  isFollowUp: boolean,
+  threadId: string | null,
+  deps: Pick<SearchFlowDeps, 'conversation' | 'history' | 'mainEl'>,
+): void {
+  if (isFollowUp) {
+    appendTurnToChat(threadId!, turn);
+  } else {
+    const chat = createNewChatWithTurn(turn);
+    setCurrentChatId(chat.id);
+  }
+  deps.history.render();
+  deps.history.syncActive();
+  const id = getCurrentChatId();
+  if (!id) return;
+  const chat = getChatById(id);
+  if (chat) {
+    deps.conversation.renderChat(chat);
+    updateTopFormVisibility(deps.mainEl);
+  }
+}
+
 export async function runSearch(query: string, deps: SearchFlowDeps): Promise<void> {
   const { status, statusSlot, conversation, history, input, mainEl, modelSelect } =
     deps;
@@ -123,6 +147,7 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
   let answerRaw = '';
   setComposerBusyState(mainEl, 'thinking');
 
+  const genStart = performance.now();
   try {
     const context = buildSearchContext(results);
     for await (const token of streamOllamaAnswer(
@@ -140,48 +165,37 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
     }
     status.clear();
 
-    const turn = createTurn({ query, answerRaw, sources: results, model });
-    if (isFollowUp) {
-      appendTurnToChat(threadId!, turn);
-    } else {
-      const chat = createNewChatWithTurn(turn);
-      setCurrentChatId(chat.id);
-    }
-    history.render();
-    history.syncActive();
-
-    const id = getCurrentChatId()!;
-    const chat = getChatById(id);
-    if (chat) {
-      conversation.renderChat(chat);
-      updateTopFormVisibility(mainEl);
-    }
+    const generationMs = Math.max(0, Math.round(performance.now() - genStart));
+    const turn = createTurn({
+      query,
+      answerRaw,
+      sources: results,
+      model,
+      generationMs,
+    });
+    commitTurnAndRefreshUi(turn, isFollowUp, threadId, {
+      conversation,
+      history,
+      mainEl,
+    });
   } catch (err) {
     const msg = (err as Error).message;
     status.set(`Ollama error: ${msg}`, true);
 
+    const generationMs = Math.max(0, Math.round(performance.now() - genStart));
     const turn = createTurn({
       query,
       answerRaw,
       sources: results,
       model,
       error: msg,
+      generationMs,
     });
-    if (isFollowUp) {
-      appendTurnToChat(threadId!, turn);
-    } else {
-      const chat = createNewChatWithTurn(turn);
-      setCurrentChatId(chat.id);
-    }
-    history.render();
-    history.syncActive();
-
-    const id = getCurrentChatId()!;
-    const chat = getChatById(id);
-    if (chat) {
-      conversation.renderChat(chat);
-      updateTopFormVisibility(mainEl);
-    }
+    commitTurnAndRefreshUi(turn, isFollowUp, threadId, {
+      conversation,
+      history,
+      mainEl,
+    });
   } finally {
     setComposerBusyState(mainEl, 'idle');
     if (getCurrentChatId()) {
