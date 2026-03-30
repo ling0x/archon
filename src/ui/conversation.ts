@@ -2,10 +2,12 @@ import type { ChatRecord, ChatTurn } from '../chatStorage';
 import { renderAnswerMarkdown } from '../markdown';
 import type { SearchResult } from '../searxng';
 import { escapeHtml } from '../utils/html';
+import { getSelectedModel, refreshReasoningTagForModel } from '../modelPicker';
 import { startGenerationTicker } from './generationTimer';
 
 /** Subset of turn fields for markdown export; `generationMs` exists only after the run completes. */
 type TurnExportPayload = Pick<ChatTurn, 'query' | 'model' | 'answerRaw' | 'sources'> & {
+  thinkingRaw?: string;
   error?: string;
   generationMs?: number;
 };
@@ -38,6 +40,13 @@ function buildTurnMarkdownForExport(t: TurnExportPayload): string {
 
   if (t.error?.trim()) {
     parts.push(`> **Error:** ${t.error.trim()}\n\n`);
+  }
+
+  if (t.thinkingRaw?.trim()) {
+    parts.push('## Reasoning trace\n\n');
+    parts.push('```\n');
+    parts.push(`${t.thinkingRaw.trim()}\n`);
+    parts.push('```\n\n');
   }
 
   if (t.answerRaw.trim()) {
@@ -89,7 +98,10 @@ function attachExportMarkdownButton(
 
   function refresh(): void {
     const t = getTurn();
-    const hasContent = Boolean(t.answerRaw.trim()) || Boolean(t.error?.trim());
+    const hasContent =
+      Boolean(t.answerRaw.trim()) ||
+      Boolean(t.error?.trim()) ||
+      Boolean(t.thinkingRaw?.trim());
     btn.disabled = !hasContent;
   }
 
@@ -110,7 +122,12 @@ function formatGenerationLabel(ms: number): string {
   return s < 10 ? `${s.toFixed(1)} s` : `${Math.round(s)} s`;
 }
 
-function mountTurnQueryShell(row: HTMLElement, query: string, model: string): HTMLElement {
+function mountTurnQueryShell(
+  row: HTMLElement,
+  query: string,
+  model: string,
+  showReasoningTag: boolean,
+): HTMLElement {
   row.textContent = '';
   const qSpan = document.createElement('span');
   qSpan.className = 'turn-query-text';
@@ -123,6 +140,13 @@ function mountTurnQueryShell(row: HTMLElement, query: string, model: string): HT
   tag.textContent = label;
   tag.title = `Model: ${label}`;
   trailing.appendChild(tag);
+  if (showReasoningTag) {
+    const r = document.createElement('span');
+    r.className = 'composer-reasoning-tag';
+    r.textContent = 'Reasoning';
+    r.title = 'This model can stream a separate reasoning trace from Ollama';
+    trailing.appendChild(r);
+  }
   row.append(qSpan, trailing);
   return trailing;
 }
@@ -132,8 +156,9 @@ function fillTurnQueryRowWithFinalTime(
   query: string,
   model: string,
   finalMs: number,
+  showReasoningTag: boolean,
 ): void {
-  const trailing = mountTurnQueryShell(row, query, model);
+  const trailing = mountTurnQueryShell(row, query, model, showReasoningTag);
   const timeTag = document.createElement('span');
   timeTag.className = 'turn-generation-tag';
   const formatted = formatGenerationLabel(finalMs);
@@ -147,8 +172,9 @@ function fillTurnQueryRowWithLiveTimer(
   row: HTMLElement,
   query: string,
   model: string,
+  showReasoningTag: boolean,
 ): () => void {
-  const trailing = mountTurnQueryShell(row, query, model);
+  const trailing = mountTurnQueryShell(row, query, model, showReasoningTag);
   const timeTag = document.createElement('span');
   timeTag.className = 'turn-generation-tag';
   timeTag.textContent = '0 s';
@@ -201,6 +227,42 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
 const COPY_BTN_TITLE_DEFAULT = 'Copy code';
 const COPY_BTN_TITLE_OK = 'Copied to clipboard';
 const COPY_BTN_TITLE_ERR = 'Copy failed';
+
+function createPersistedThinkingDetails(text: string): HTMLElement {
+  const details = document.createElement('details');
+  details.className = 'turn-thinking-details turn-thinking-done';
+  details.open = true;
+
+  const summary = document.createElement('summary');
+  summary.className = 'turn-thinking-summary';
+  summary.textContent = 'Reasoning';
+
+  const body = document.createElement('div');
+  body.className = 'turn-thinking-body';
+  body.textContent = text;
+
+  details.append(summary, body);
+  return details;
+}
+
+function createLiveThinkingShell(): {
+  details: HTMLDetailsElement;
+  body: HTMLElement;
+} {
+  const details = document.createElement('details');
+  details.className = 'turn-thinking-details';
+  details.open = true;
+
+  const summary = document.createElement('summary');
+  summary.className = 'turn-thinking-summary';
+  summary.textContent = 'Reasoning';
+
+  const body = document.createElement('div');
+  body.className = 'turn-thinking-body';
+
+  details.append(summary, body);
+  return { details, body };
+}
 
 function renderReferencesSection(parent: HTMLElement, results: SearchResult[]): void {
   parent.innerHTML = '';
@@ -305,6 +367,9 @@ function createFollowupSlot(isLast: boolean): HTMLElement {
   const submitRow = document.createElement('div');
   submitRow.className = 'composer-submit-row';
 
+  const modelCluster = document.createElement('div');
+  modelCluster.className = 'composer-model-cluster';
+
   const modelWrap = document.createElement('div');
   modelWrap.className = 'composer-model-inline';
 
@@ -330,6 +395,15 @@ function createFollowupSlot(isLast: boolean): HTMLElement {
 
   modelWrap.append(label, modelSel);
 
+  const tplReason = document.querySelector<HTMLElement>('#search-form .composer-reasoning-tag');
+  if (tplReason) {
+    const reasonEl = tplReason.cloneNode(true) as HTMLElement;
+    if (!isLast) reasonEl.classList.add('is-followup-inactive');
+    modelCluster.append(modelWrap, reasonEl);
+  } else {
+    modelCluster.appendChild(modelWrap);
+  }
+
   const btn = document.createElement('button');
   btn.type = 'submit';
   btn.className = 'composer-submit-btn turn-followup-submit';
@@ -340,7 +414,7 @@ function createFollowupSlot(isLast: boolean): HTMLElement {
   span.textContent = 'Search';
   btn.appendChild(span);
 
-  submitRow.append(modelWrap, btn);
+  submitRow.append(modelCluster, btn);
   row.append(ta, submitRow);
   form.appendChild(row);
 
@@ -355,6 +429,7 @@ function createFollowupSlot(isLast: boolean): HTMLElement {
 export type TurnUi = {
   setSources: (results: SearchResult[]) => void;
   setAnswerMarkdown: (raw: string) => void;
+  appendThinkingChunk: (text: string) => void;
 };
 
 export type ConversationView = {
@@ -362,7 +437,7 @@ export type ConversationView = {
   show: () => void;
   hide: () => void;
   renderChat: (chat: ChatRecord) => void;
-  startTurn: (query: string, model: string) => TurnUi;
+  startTurn: (query: string, model: string, opts?: { thinkingCapable?: boolean }) => TurnUi;
   scrollToBottom: () => void;
 };
 
@@ -434,7 +509,18 @@ export function createConversationView(
 
         const qEl = document.createElement('div');
         qEl.className = 'turn-query';
-        fillTurnQueryRowWithFinalTime(qEl, turn.query, turn.model, turn.generationMs);
+        const showReasoning =
+          turn.thinkingCapable === true || Boolean(turn.thinkingRaw?.trim());
+        fillTurnQueryRowWithFinalTime(
+          qEl,
+          turn.query,
+          turn.model,
+          turn.generationMs,
+          showReasoning,
+        );
+
+        const thinkingEl =
+          turn.thinkingRaw?.trim() ? createPersistedThinkingDetails(turn.thinkingRaw.trim()) : null;
 
         const aEl = document.createElement('div');
         aEl.className = 'turn-answer markdown-body';
@@ -448,12 +534,17 @@ export function createConversationView(
         renderTurnContent(aEl, turn);
         renderReferencesSection(refWrap, turn.sources);
 
-        article.append(qEl, aEl, refWrap, answerFooter);
+        article.append(qEl);
+        if (thinkingEl) article.appendChild(thinkingEl);
+        article.append(aEl, refWrap, answerFooter);
         container.appendChild(article);
 
         const isLast = index === n - 1;
         container.appendChild(createFollowupSlot(isLast));
       });
+
+      const tplSel = document.querySelector<HTMLSelectElement>('#model-select');
+      if (tplSel) void refreshReasoningTagForModel(getSelectedModel(tplSel));
       section.classList.remove('hidden');
       scrollToBottom();
       requestAnimationFrame(() => {
@@ -465,15 +556,21 @@ export function createConversationView(
       });
     },
 
-    startTurn(query: string, model: string): TurnUi {
+    startTurn(
+      query: string,
+      model: string,
+      opts: { thinkingCapable?: boolean } = {},
+    ): TurnUi {
       disposeGenerationTicker();
+
+      const { thinkingCapable = false } = opts;
 
       const article = document.createElement('article');
       article.className = 'turn turn-pending';
 
       const qEl = document.createElement('div');
       qEl.className = 'turn-query';
-      stopGenerationTicker = fillTurnQueryRowWithLiveTimer(qEl, query, model);
+      stopGenerationTicker = fillTurnQueryRowWithLiveTimer(qEl, query, model, thinkingCapable);
 
       const aEl = document.createElement('div');
       aEl.className = 'turn-answer markdown-body';
@@ -489,11 +586,14 @@ export function createConversationView(
 
       let turnSources: SearchResult[] = [];
       let answerSnapshot = '';
+      let thinkingSnapshot = '';
+      let liveThinking: { details: HTMLDetailsElement; body: HTMLElement } | null = null;
 
       const exportCtl = attachExportMarkdownButton(answerFooter, () => ({
         query,
         model,
         answerRaw: answerSnapshot,
+        thinkingRaw: thinkingSnapshot.trim() || undefined,
         sources: turnSources,
       }));
 
@@ -505,6 +605,18 @@ export function createConversationView(
         setAnswerMarkdown(raw: string) {
           answerSnapshot = raw;
           aEl.innerHTML = renderAnswerMarkdown(raw, turnSources);
+          exportCtl.refresh();
+          scrollToBottom();
+        },
+        appendThinkingChunk(text: string) {
+          if (!text) return;
+          thinkingSnapshot += text;
+          if (!liveThinking) {
+            liveThinking = createLiveThinkingShell();
+            liveThinking.details.classList.add('turn-thinking-done');
+            article.insertBefore(liveThinking.details, aEl);
+          }
+          liveThinking.body.textContent += text;
           exportCtl.refresh();
           scrollToBottom();
         },

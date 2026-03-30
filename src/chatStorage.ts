@@ -5,6 +5,10 @@ export interface ChatTurn {
   createdAt: number;
   query: string;
   answerRaw: string;
+  /** Optional reasoning trace from Ollama `thinking` stream when enabled. */
+  thinkingRaw?: string;
+  /** True when the model reported the `thinking` capability for this turn. */
+  thinkingCapable?: boolean;
   sources: SearchResult[];
   model: string;
   /** Streaming time for the model reply (ms); excludes search/query formulation. */
@@ -19,7 +23,8 @@ export interface ChatRecord {
   turns: ChatTurn[];
 }
 
-const KEY = 'archon-chats-v5';
+const KEY = 'archon-chats-v6';
+const LEGACY_KEY = 'archon-chats-v5';
 const MAX_CHATS = 100;
 
 /** Parsed thread list; invalidated on every save. Avoids re-parsing JSON on hot paths. */
@@ -57,6 +62,8 @@ function isChatTurn(raw: unknown): raw is ChatTurn {
     return false;
   }
   if (t.error != null && typeof t.error !== 'string') return false;
+  if (t.thinkingRaw != null && typeof t.thinkingRaw !== 'string') return false;
+  if (t.thinkingCapable != null && typeof t.thinkingCapable !== 'boolean') return false;
   return true;
 }
 
@@ -78,7 +85,15 @@ function parseChatRecord(raw: unknown): ChatRecord | null {
 
 function readStorage(): ChatRecord[] {
   try {
-    const raw = localStorage.getItem(KEY);
+    let raw = localStorage.getItem(KEY);
+    if (!raw) {
+      const legacy = localStorage.getItem(LEGACY_KEY);
+      if (legacy) {
+        raw = legacy;
+        localStorage.setItem(KEY, legacy);
+        localStorage.removeItem(LEGACY_KEY);
+      }
+    }
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -125,6 +140,8 @@ export function createTurn(
     sources: partial.sources,
     model: partial.model,
     generationMs: partial.generationMs,
+    ...(partial.thinkingRaw?.trim() ? { thinkingRaw: partial.thinkingRaw } : {}),
+    ...(partial.thinkingCapable === true ? { thinkingCapable: true } : {}),
     ...(partial.error ? { error: partial.error } : {}),
   };
 }

@@ -34,7 +34,8 @@
 /* Inactive follow-up slots: same components as main, dimmed */
 .turn-followup .composer-input.is-followup-inactive,
 .turn-followup .composer-submit-btn.is-followup-inactive,
-.turn-followup .composer-model-select.is-followup-inactive {
+.turn-followup .composer-model-select.is-followup-inactive,
+.turn-followup .composer-reasoning-tag.is-followup-inactive {
   opacity: 0.45;
   cursor: not-allowed;
 }
@@ -74,6 +75,79 @@
   justify-content: flex-end;
   gap: 0.35rem 0.45rem;
   max-width: 100%;
+}
+
+.turn-query-trailing > .composer-reasoning-tag {
+  align-self: flex-start;
+}
+
+/* Collapsible model reasoning trace (Ollama `thinking` stream) */
+.turn-thinking-details {
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+}
+
+.turn-thinking-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  list-style: none;
+  cursor: pointer;
+  padding: 0.55rem 1.1rem;
+  user-select: none;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.turn-thinking-summary::-webkit-details-marker {
+  display: none;
+}
+
+.turn-thinking-summary::before {
+  content: '';
+  display: block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-right: 0.15rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg);
+  flex-shrink: 0;
+  transition: transform 0.12s ease;
+}
+
+.turn-thinking-details[open] > .turn-thinking-summary::before {
+  transform: rotate(45deg);
+  margin-top: -0.12rem;
+}
+
+.turn-thinking-summary:hover,
+.turn-thinking-details[open] > .turn-thinking-summary {
+  color: var(--text);
+}
+
+.turn-thinking-summary:hover::before,
+.turn-thinking-details[open] > .turn-thinking-summary::before {
+  border-color: var(--accent-hover);
+}
+
+.turn-thinking-body {
+  padding: 0 1.1rem 0.9rem;
+  margin: 0;
+  max-height: min(38vh, 22rem);
+  overflow: auto;
+  font-family:
+    ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--blockquote-fg);
+  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
 }
 
 .turn-model-tag {

@@ -1,5 +1,20 @@
 /* modelPicker.ts — Ollama model dropdown in composer strip */
 
+.composer-model-cluster {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 0.6rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.composer-model-cluster > .composer-model-inline {
+  margin-left: 0;
+}
+
 .composer-model-inline {
   display: flex;
   align-items: center;

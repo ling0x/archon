@@ -18,6 +18,7 @@ import type { ChatHistoryView } from '../ui/chatHistory';
 import type { ConversationView } from '../ui/conversation';
 import type { StatusBar } from '../ui/statusBar';
 import { getSelectedModel } from '../modelPicker';
+import { defaultThinkParameter, modelSupportsThinking } from '../modelCapabilities';
 import {
   setComposerBusyState,
   updateTopFormVisibility,
@@ -104,7 +105,8 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
     conversation.clear();
   }
 
-  const turnUi = conversation.startTurn(query, model);
+  const thinkingCapable = await modelSupportsThinking(model);
+  const turnUi = conversation.startTurn(query, model, { thinkingCapable });
 
   const priorTurns = priorTurnsForPrompt(isFollowUp ? threadId : null);
 
@@ -145,12 +147,15 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
   turnUi.setSources(results);
 
   let answerRaw = '';
+  let thinkingRaw = '';
   setComposerBusyState(mainEl, 'thinking');
 
   const genStart = performance.now();
   try {
     const context = buildSearchContext(results);
-    for await (const token of streamOllamaAnswer(
+    const think = thinkingCapable ? defaultThinkParameter(model) : undefined;
+
+    for await (const chunk of streamOllamaAnswer(
       query,
       context,
       priorTurns,
@@ -158,10 +163,16 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
       {
         searchQueryUsed: searchQueriesNote,
         hasSearchResults: results.length > 0,
+        think,
       },
     )) {
-      answerRaw += token;
-      turnUi.setAnswerMarkdown(answerRaw);
+      if (chunk.kind === 'thinking') {
+        thinkingRaw += chunk.text;
+        turnUi.appendThinkingChunk(chunk.text);
+      } else {
+        answerRaw += chunk.text;
+        turnUi.setAnswerMarkdown(answerRaw);
+      }
     }
     status.clear();
 
@@ -169,6 +180,8 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
     const turn = createTurn({
       query,
       answerRaw,
+      thinkingRaw: thinkingRaw.trim() || undefined,
+      thinkingCapable: thinkingCapable || undefined,
       sources: results,
       model,
       generationMs,
@@ -186,6 +199,8 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
     const turn = createTurn({
       query,
       answerRaw,
+      thinkingRaw: thinkingRaw.trim() || undefined,
+      thinkingCapable: thinkingCapable || undefined,
       sources: results,
       model,
       error: msg,

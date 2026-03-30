@@ -1,8 +1,13 @@
 export interface OllamaStreamChunk {
   model: string;
   response: string;
+  thinking?: string;
   done: boolean;
 }
+
+export type StreamAnswerChunk =
+  | { kind: 'thinking'; text: string }
+  | { kind: 'response'; text: string };
 
 export type PriorTurn = { query: string; answer: string };
 
@@ -150,6 +155,8 @@ export async function formulateSearchQueries(
 export type StreamAnswerOptions = {
   hasSearchResults: boolean;
   searchQueryUsed?: string;
+  /** Ollama `think` when the model supports it; omit for models without thinking. */
+  think?: boolean | 'low' | 'medium' | 'high';
 };
 
 const SYSTEM_PROMPT_GROUNDED = [
@@ -173,7 +180,7 @@ export async function* streamOllamaAnswer(
   priorTurns: readonly PriorTurn[],
   model: string,
   options: StreamAnswerOptions,
-): AsyncGenerator<string> {
+): AsyncGenerator<StreamAnswerChunk> {
   const hasSearch = options.hasSearchResults;
   const systemPrompt = hasSearch ? SYSTEM_PROMPT_GROUNDED : SYSTEM_PROMPT_NO_RESULTS;
 
@@ -207,21 +214,26 @@ export async function* streamOllamaAnswer(
       : 'Follow the instructions for the no-results case.',
   ].join('\n');
 
+  const body: Record<string, unknown> = {
+    model,
+    system: systemPrompt,
+    prompt: userMessage,
+    stream: true,
+    options: {
+      temperature: 0.2,
+      top_p: 0.9,
+      repeat_penalty: 1.05,
+      num_ctx: 8192,
+    },
+  };
+  if (options.think !== undefined) {
+    body.think = options.think;
+  }
+
   const res = await fetch('/ollama/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      system: systemPrompt,
-      prompt: userMessage,
-      stream: true,
-      options: {
-        temperature: 0.2,
-        top_p: 0.9,
-        repeat_penalty: 1.05,
-        num_ctx: 8192,
-      },
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
@@ -241,7 +253,12 @@ export async function* streamOllamaAnswer(
     for (const line of lines) {
       try {
         const chunk: OllamaStreamChunk = JSON.parse(line);
-        if (chunk.response) yield chunk.response;
+        if (chunk.thinking) {
+          yield { kind: 'thinking', text: chunk.thinking };
+        }
+        if (chunk.response) {
+          yield { kind: 'response', text: chunk.response };
+        }
         if (chunk.done) return;
       } catch {
         // skip malformed lines

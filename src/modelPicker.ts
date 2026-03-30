@@ -1,3 +1,5 @@
+import { capabilitiesIncludeThinking, fetchModelCapabilities } from './modelCapabilities';
+
 const STORAGE_KEY = 'archon-ollama-model';
 const FALLBACK_MODEL: string = __OLLAMA_FALLBACK_MODEL__;
 
@@ -10,6 +12,17 @@ function syncAllModelSelectsFrom(source: HTMLSelectElement): void {
     s.value = val;
   });
   localStorage.setItem(STORAGE_KEY, val);
+}
+
+/** Show a “Reasoning” tag in each composer when the Ollama model reports the `thinking` capability. */
+export async function refreshReasoningTagForModel(model: string): Promise<void> {
+  const caps = await fetchModelCapabilities(model);
+  const supported = capabilitiesIncludeThinking(caps);
+  document.querySelectorAll<HTMLElement>('.composer-reasoning-tag').forEach((el) => {
+    const inactive = el.classList.contains('is-followup-inactive');
+    el.classList.toggle('hidden', !supported || inactive);
+    el.setAttribute('aria-hidden', !supported || inactive ? 'true' : 'false');
+  });
 }
 
 /** Copy options + value from primary to every other `.composer-model-select` (e.g. after load or new follow-up). */
@@ -68,6 +81,8 @@ export async function initModelSelect(
 
   replicateModelSelectOptionsFrom(primarySelect);
 
+  void refreshReasoningTagForModel(getSelectedModel(primarySelect));
+
   if (mainPanel && !mainPanel.dataset.archonModelSyncBound) {
     mainPanel.dataset.archonModelSyncBound = '1';
     mainPanel.addEventListener('change', (e) => {
@@ -76,6 +91,7 @@ export async function initModelSelect(
         return;
       }
       syncAllModelSelectsFrom(t);
+      void refreshReasoningTagForModel(t.value?.trim() || FALLBACK_MODEL);
     });
   }
 }

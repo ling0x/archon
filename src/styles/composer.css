@@ -77,3 +77,31 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Shared by main composer, follow-up composers, and turn header chips */
+.composer-reasoning-tag {
+  flex-shrink: 0;
+  padding: 0.2rem 0.48rem;
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent-hover) 88%, var(--text));
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+  white-space: nowrap;
+  user-select: none;
+  font-family: inherit;
+  line-height: 1.25;
+  box-sizing: border-box;
+}
+
+.composer-model-cluster > .composer-reasoning-tag {
+  align-self: center;
+}
+
+.composer-reasoning-tag.is-followup-inactive {
+  opacity: 0.45;
+  pointer-events: none;
+}
