@@ -11,8 +11,19 @@ export type StreamAnswerChunk =
 
 export type PriorTurn = { query: string; answer: string };
 
-/** Keeps follow-ups from anchoring on long prior answers; formulation uses `buildPriorBlock`. */
-const PRIOR_ANSWER_TRUNCATE_CHARS = 480;
+/**
+ * Max characters of prior *assistant* answers included in the answer prompt, allocated
+ * newest-turn-first so the latest reply (e.g. a docker-compose example) stays intact.
+ * Override with env `PRIOR_ASSISTANT_BUDGET_CHARS` (default 6000; baked in at build via Vite).
+ */
+const PRIOR_ASSISTANT_BUDGET_CHARS: number = __PRIOR_ASSISTANT_BUDGET_CHARS__;
+/** Ollama `num_ctx` for streaming answers; env `OLLAMA_ANSWER_NUM_CTX`, default 16384. */
+const OLLAMA_ANSWER_NUM_CTX: number = __OLLAMA_ANSWER_NUM_CTX__;
+/** Prior assistant budget for search-query formulation; env `SEARCH_FORMULATION_PRIOR_BUDGET_CHARS`, default 10000. */
+const SEARCH_FORMULATION_PRIOR_BUDGET_CHARS: number =
+  __SEARCH_FORMULATION_PRIOR_BUDGET_CHARS__;
+/** Ollama `num_ctx` for the search-formulation request; env `SEARCH_FORMULATION_NUM_CTX`, default 16384. */
+const SEARCH_FORMULATION_NUM_CTX: number = __SEARCH_FORMULATION_NUM_CTX__;
 
 function wrapPriorConversationBlock(body: string): string {
   return [
@@ -23,7 +34,7 @@ function wrapPriorConversationBlock(body: string): string {
   ].join('\n');
 }
 
-/** Full prior turns for search-query formulation. */
+/** Full prior turns (no truncation). Prefer budgeted blocks for prompts that must fit `num_ctx`. */
 export function buildPriorBlock(priorTurns: readonly PriorTurn[]): string {
   if (priorTurns.length === 0) return '';
   const body = priorTurns
@@ -34,19 +45,52 @@ export function buildPriorBlock(priorTurns: readonly PriorTurn[]): string {
   return wrapPriorConversationBlock(body);
 }
 
-/** Truncated prior turns for the answer model only. */
-function buildPriorBlockTruncated(priorTurns: readonly PriorTurn[]): string {
+function buildPriorBlockBudgeted(
+  priorTurns: readonly PriorTurn[],
+  assistantAnswerBudget: number,
+): string {
   if (priorTurns.length === 0) return '';
+  const answers = allocatePriorAnswersNewestFirst(
+    priorTurns,
+    assistantAnswerBudget,
+  );
   const body = priorTurns
-    .map((t, i) => {
-      let ans = t.answer;
-      if (ans.length > PRIOR_ANSWER_TRUNCATE_CHARS) {
-        ans = `${ans.slice(0, PRIOR_ANSWER_TRUNCATE_CHARS).trimEnd()}…`;
-      }
-      return `Turn ${i + 1}\nUser: ${t.query}\nAssistant: ${ans}`;
-    })
+    .map((t, i) => `Turn ${i + 1}\nUser: ${t.query}\nAssistant: ${answers[i]}`)
     .join('\n\n');
   return wrapPriorConversationBlock(body);
+}
+
+/** Allocate assistant-answer text newest-first so follow-ups about the last reply stay coherent. */
+function allocatePriorAnswersNewestFirst(
+  priorTurns: readonly PriorTurn[],
+  budget: number,
+): string[] {
+  const n = priorTurns.length;
+  const out: string[] = Array.from({ length: n }, () => '');
+  let remaining = Math.max(0, budget);
+  for (let i = n - 1; i >= 0; i--) {
+    const raw = priorTurns[i].answer;
+    if (raw.length <= remaining) {
+      out[i] = raw;
+      remaining -= raw.length;
+    } else if (remaining > 0) {
+      out[i] = `${raw.slice(0, remaining).trimEnd()}…`;
+      remaining = 0;
+    } else {
+      out[i] = '[Earlier assistant reply omitted here to fit context limits.]';
+    }
+  }
+  return out;
+}
+
+/** Prior turns for the answer model: budgeted, newest assistant replies preserved. */
+function buildPriorBlockForAnswer(priorTurns: readonly PriorTurn[]): string {
+  return buildPriorBlockBudgeted(priorTurns, PRIOR_ASSISTANT_BUDGET_CHARS);
+}
+
+/** Prior turns for search-query formulation: larger budget, newest replies preserved for follow-ups. */
+function buildPriorBlockForFormulation(priorTurns: readonly PriorTurn[]): string {
+  return buildPriorBlockBudgeted(priorTurns, SEARCH_FORMULATION_PRIOR_BUDGET_CHARS);
 }
 
 /** Model dedicated to turning user intent into SearXNG sub-queries (not the answer model). */
@@ -113,18 +157,21 @@ export async function formulateSearchQueries(
   userMessage: string,
   priorTurns: readonly PriorTurn[],
 ): Promise<string[]> {
-  const prior = buildPriorBlock(priorTurns);
+  const prior = buildPriorBlockForFormulation(priorTurns);
   const system = [
-    'You split an information need into 1–3 short web search queries for SearXNG.',
-    'Reply with ONLY a JSON array of strings, for example: ["rust async book", "tokio tutorial"].',
+    'You turn a user information need into 1–3 short SearXNG web search queries.',
+    'Reply with ONLY a JSON array of strings, for example: ["postgresql docker compose volume", "nginx ssl certbot"].',
     'No markdown code fences, no object wrapper, no commentary. Maximum 3 strings.',
     'Each string must be a single line: search keywords and short phrases only, under 120 characters.',
     'If one query is enough, return a one-element array.',
-    'Use prior conversation when the latest message is vague (e.g. "the second option", "more on that").',
+    'Read the entire "Earlier in this conversation" block. Assistant replies often name products, versions, images, APIs, errors, file formats, or topics.',
+    'When the latest user message is short or vague ("that service", "is it secure", "what about ports"), resolve what they mean using the prior user questions and especially the prior Assistant answers, then bake those concrete terms into the search queries.',
+    'If the follow-up is about something introduced in a prior Assistant answer (e.g. a docker-compose service, a library, a flag), include those identifiers in the queries so results match the same subject.',
   ].join(' ');
 
   const prompt = [
     prior,
+    'Use the conversation above so the queries match the same topic as the latest message.',
     `Latest user message: ${userMessage}`,
     '',
     'Output only the JSON array.',
@@ -138,7 +185,11 @@ export async function formulateSearchQueries(
       system,
       prompt,
       stream: false,
-      options: { temperature: 0.15, num_predict: 320 },
+      options: {
+        temperature: 0.15,
+        num_predict: 320,
+        num_ctx: SEARCH_FORMULATION_NUM_CTX,
+      },
     }),
   });
 
@@ -165,13 +216,16 @@ const SYSTEM_PROMPT_GROUNDED = [
   'Use only citation indices that exist in the excerpt list; never invent [[n]] numbers or URLs not listed.',
   'If excerpts conflict, say so briefly and reflect both sides or explain the uncertainty.',
   'If excerpts are insufficient for the question, say so clearly instead of guessing.',
-  'Earlier conversation turns may be truncated; they are for context only. If anything there disagrees with the excerpts for the current question, trust the excerpts.',
+  'The block labeled "Earlier in this conversation" may be truncated for length; use it when the user refers to your prior replies, code, or examples (e.g. YAML, commands).',
+  'For questions about content you already gave in that block, answer from that earlier assistant text; no [[n]] citation is required for your own prior wording.',
+  'For new factual claims about the external world, rely on the search excerpts below; if earlier conversation and excerpts conflict on web-sourced facts, prefer the excerpts.',
 ].join(' ');
 
 const SYSTEM_PROMPT_NO_RESULTS = [
   'No web search results were retrieved for this question.',
   'Do not invent specific facts, statistics, dates, quotes, or URLs as if they came from the web.',
   'Briefly explain that nothing was found, suggest rephrasing or different keywords, and only then offer very general non-specific guidance if helpful.',
+  'If the user asks about code, YAML, or explanations from "Earlier in this conversation", answer from that block when it contains the material.',
 ].join(' ');
 
 export async function* streamOllamaAnswer(
@@ -184,7 +238,7 @@ export async function* streamOllamaAnswer(
   const hasSearch = options.hasSearchResults;
   const systemPrompt = hasSearch ? SYSTEM_PROMPT_GROUNDED : SYSTEM_PROMPT_NO_RESULTS;
 
-  const prior = buildPriorBlockTruncated(priorTurns);
+  const prior = buildPriorBlockForAnswer(priorTurns);
 
   const sq = options.searchQueryUsed?.trim() ?? '';
   const searchQueryNote =
@@ -223,7 +277,7 @@ export async function* streamOllamaAnswer(
       temperature: 0.2,
       top_p: 0.9,
       repeat_penalty: 1.05,
-      num_ctx: 8192,
+      num_ctx: OLLAMA_ANSWER_NUM_CTX,
     },
   };
   if (options.think !== undefined) {
