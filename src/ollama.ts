@@ -100,54 +100,31 @@ const MAX_SUB_QUERIES = 3;
 const MAX_SUBQUERY_LEN = 200;
 
 function sanitizeSearchQueryLine(raw: string, fallback: string): string {
-  let s = raw.trim();
-  if (
-    (s.startsWith('"') && s.endsWith('"')) ||
-    (s.startsWith('“') && s.endsWith('”'))
-  ) {
-    s = s.slice(1, -1).trim();
-  }
-  const line = s.split(/\r?\n/)[0]?.trim() ?? '';
+  const line = raw.trim().split(/\r?\n/)[0]?.trim() ?? '';
   if (!line) return fallback;
   return line.slice(0, MAX_SUBQUERY_LEN);
 }
 
-function stripJsonFence(s: string): string {
-  const t = s.trim();
-  if (!t.startsWith('```')) return t;
-  return t
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```$/u, '')
-    .trim();
-}
-
+/** Expects a raw JSON array of strings from the formulation model; otherwise uses `fallback` as a single query. */
 function parseQueriesFromModelResponse(raw: string, fallback: string): string[] {
-  const text = stripJsonFence(raw);
+  const fb = sanitizeSearchQueryLine(fallback, fallback);
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(text) as unknown;
-    if (Array.isArray(parsed)) {
-      const out: string[] = [];
-      for (const item of parsed) {
-        if (typeof item !== 'string') continue;
-        const q = sanitizeSearchQueryLine(item, '');
-        if (q) out.push(q);
-        if (out.length >= MAX_SUB_QUERIES) break;
-      }
-      const uniq = [...new Set(out)];
-      if (uniq.length > 0) return uniq;
-    }
+    parsed = JSON.parse(raw.trim());
   } catch {
-    /* try line split */
+    return [fb];
   }
+  if (!Array.isArray(parsed)) return [fb];
 
-  const lines = text
-    .split(/\n/)
-    .map((l) => sanitizeSearchQueryLine(l, ''))
-    .filter(Boolean);
-  const fromLines = [...new Set(lines)].slice(0, MAX_SUB_QUERIES);
-  if (fromLines.length > 0) return fromLines;
-
-  return [sanitizeSearchQueryLine(fallback, fallback)];
+  const out: string[] = [];
+  for (const item of parsed) {
+    if (typeof item !== 'string') continue;
+    const q = sanitizeSearchQueryLine(item, '');
+    if (q) out.push(q);
+    if (out.length >= MAX_SUB_QUERIES) break;
+  }
+  const uniq = [...new Set(out)];
+  return uniq.length > 0 ? uniq : [fb];
 }
 
 /**
@@ -162,8 +139,10 @@ export async function formulateSearchQueries(
     'You turn a user information need into 1–3 short SearXNG web search queries.',
     'Reply with ONLY a JSON array of strings, for example: ["postgresql docker compose volume", "nginx ssl certbot"].',
     'No markdown code fences, no object wrapper, no commentary. Maximum 3 strings.',
-    'Each string must be a single line: search keywords and short phrases only, under 120 characters.',
-    'If one query is enough, return a one-element array.',
+    'Each string must be a single line: dense search keywords and short phrases only, max about 200 characters per string.',
+    'Use 1 query only when the message is narrowly about one fact, one product, or one named thing.',
+    'If the message lists multiple topics, skill areas, technologies, book types, or requirements (e.g. long job specs, reading lists, or several unrelated themes), you MUST return 3 strings that cover different facets—never collapse everything into one vague query like "books to read" or "software engineering tips".',
+    'Split broad asks into complementary angles: each major theme the user named should get keywords in at least one of the three strings (e.g. separate strings for distinct stacks, book genres, or problem domains they listed).',
     'Read the entire "Earlier in this conversation" block. Assistant replies often name products, versions, images, APIs, errors, file formats, or topics.',
     'When the latest user message is short or vague ("that service", "is it secure", "what about ports"), resolve what they mean using the prior user questions and especially the prior Assistant answers, then bake those concrete terms into the search queries.',
     'If the follow-up is about something introduced in a prior Assistant answer (e.g. a docker-compose service, a library, a flag), include those identifiers in the queries so results match the same subject.',
@@ -172,6 +151,7 @@ export async function formulateSearchQueries(
   const prompt = [
     prior,
     'Use the conversation above so the queries match the same topic as the latest message.',
+    'If the latest message is long or covers several subjects, output 3 queries that split those subjects; do not summarize the whole message into a single generic search.',
     `Latest user message: ${userMessage}`,
     '',
     'Output only the JSON array.',
@@ -187,7 +167,7 @@ export async function formulateSearchQueries(
       stream: false,
       options: {
         temperature: 0.15,
-        num_predict: 320,
+        num_predict: 512,
         num_ctx: SEARCH_FORMULATION_NUM_CTX,
       },
     }),

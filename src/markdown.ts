@@ -197,20 +197,12 @@ function externalizeLinks(html: string): string {
   return tpl.innerHTML;
 }
 
-/** [[7]] first, then [7] not already part of [7](url), then 【7】 / ［7］ */
-const RAW_CITATION_RE =
-  /\[\[(\d+)\]\](?!\()|\[(\d+)\](?!\()|\u3010(\d+)\u3011|\uff3b(\d+)\uff3d/g;
-
-function citationIndexFromReplaceCallback(
-  _full: string,
-  d1: string | undefined,
-  d2: string | undefined,
-  d3: string | undefined,
-  d4: string | undefined,
-): number {
-  const g = d1 ?? d2 ?? d3 ?? d4;
-  return Number.parseInt(g ?? '0', 10);
-}
+/**
+ * Citation markers to turn into links using search result order.
+ * - `[[n]]` — style asked for in the system prompt
+ * - `[n]` — when the model omits the second bracket; skipped if already `[n](url)`
+ */
+const RAW_CITATION_RE = /\[\[(\d+)\]\](?!\()|\[(\d+)\](?!\()/g;
 
 function buildUrlIndex(sources: readonly SearchResult[]): Map<number, string> {
   const urlByIndex = new Map<number, string>();
@@ -223,6 +215,35 @@ function buildUrlIndex(sources: readonly SearchResult[]): Map<number, string> {
   return urlByIndex;
 }
 
+/** Apply `transform` to segments outside ``` fenced code blocks. */
+function transformOutsideCodeFences(raw: string, transform: (chunk: string) => string): string {
+  let out = '';
+  let last = 0;
+  const fence = /```[\s\S]*?```/g;
+  let m: RegExpExecArray | null;
+  while ((m = fence.exec(raw)) !== null) {
+    out += transform(raw.slice(last, m.index));
+    out += m[0];
+    last = fence.lastIndex;
+  }
+  out += transform(raw.slice(last));
+  return out;
+}
+
+/**
+ * Wrap or escape a URL for use as a Markdown inline link destination `(…)`.
+ * Uses angle brackets when `)`, `(`, or whitespace would break parsing.
+ */
+function markdownLinkDestination(url: string): string {
+  const u = url.trim();
+  if (!u) return u;
+  if (/[\s()]/.test(u)) {
+    const inner = u.replace(/\\/g, '\\\\').replace(/>/g, '\\>');
+    return `<${inner}>`;
+  }
+  return u;
+}
+
 /**
  * Turn visible citation markers into Markdown links before parse, so marked emits
  * `<a href="…">[n]</a>` (visible text uses escaped brackets: [\[n\]](url)).
@@ -233,28 +254,40 @@ function injectCitationMarkdownLinks(
 ): string {
   if (urlByIndex.size === 0) return raw;
 
-  const replaceChunk = (chunk: string): string =>
-    chunk.replace(
-      RAW_CITATION_RE,
-      (full, d1, d2, d3, d4) => {
-        const n = citationIndexFromReplaceCallback(full, d1, d2, d3, d4);
-        const url = urlByIndex.get(n);
-        if (!url) return full;
-        return `[\\[${n}\\]](${url})`;
-      },
-    );
+  return transformOutsideCodeFences(raw, (chunk) =>
+    chunk.replace(RAW_CITATION_RE, (full, g1: string | undefined, g2: string | undefined) => {
+      const nStr = g1 ?? g2;
+      if (!nStr) return full;
+      const n = Number.parseInt(nStr, 10);
+      const url = urlByIndex.get(n);
+      if (!url) return full;
+      return `[\\[${n}\\]](${markdownLinkDestination(url)})`;
+    }),
+  );
+}
 
-  let out = '';
-  let last = 0;
-  const fence = /```[\s\S]*?```/g;
-  let m: RegExpExecArray | null;
-  while ((m = fence.exec(raw)) !== null) {
-    out += replaceChunk(raw.slice(last, m.index));
-    out += m[0];
-    last = fence.lastIndex;
-  }
-  out += replaceChunk(raw.slice(last));
-  return out;
+/**
+ * Same citation rules as in-app rendering, but for downloadable Markdown: `[[n]]` / `[n]` → `[n](url)`.
+ * Skips fenced code blocks. Unknown indices or non-http URLs are left unchanged.
+ */
+export function formatAnswerForMarkdownExport(
+  raw: string,
+  sources: readonly SearchResult[],
+): string {
+  if (sources.length === 0) return raw;
+  const urlByIndex = buildUrlIndex(sources);
+  if (urlByIndex.size === 0) return raw;
+
+  return transformOutsideCodeFences(raw, (chunk) =>
+    chunk.replace(RAW_CITATION_RE, (full, g1: string | undefined, g2: string | undefined) => {
+      const nStr = g1 ?? g2;
+      if (!nStr) return full;
+      const n = Number.parseInt(nStr, 10);
+      const url = urlByIndex.get(n);
+      if (!url) return full;
+      return `[${n}](${markdownLinkDestination(url)})`;
+    }),
+  );
 }
 
 const CITATION_LABEL_RE = /^\[\d+\]$/;

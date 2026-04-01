@@ -1,5 +1,5 @@
 import type { ChatRecord, ChatTurn } from '../chatStorage';
-import { renderAnswerMarkdown } from '../markdown';
+import { formatAnswerForMarkdownExport, renderAnswerMarkdown } from '../markdown';
 import type { SearchResult } from '../searxng';
 import { escapeHtml } from '../utils/html';
 import { getSelectedModel, refreshReasoningTagForModel } from '../modelPicker';
@@ -50,7 +50,9 @@ function buildTurnMarkdownForExport(t: TurnExportPayload): string {
   }
 
   if (t.answerRaw.trim()) {
-    parts.push(`${t.answerRaw.trim()}\n\n`);
+    parts.push(
+      `${formatAnswerForMarkdownExport(t.answerRaw.trim(), t.sources)}\n\n`,
+    );
   }
 
   if (t.sources.length > 0) {

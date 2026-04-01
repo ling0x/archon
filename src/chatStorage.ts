@@ -23,7 +23,7 @@ export interface ChatRecord {
   turns: ChatTurn[];
 }
 
-const KEY = 'archon-chats-v6';
+const KEY = 'archon-chats';
 const MAX_CHATS = 100;
 
 /** Parsed thread list; invalidated on every save. Avoids re-parsing JSON on hot paths. */
@@ -117,23 +117,11 @@ export function chatHasError(chat: ChatRecord): boolean {
   return chat.turns.some((t) => t.error);
 }
 
-export function createTurn(
-  partial: Omit<ChatTurn, 'id' | 'createdAt'> & {
-    id?: string;
-    createdAt?: number;
-  },
-): ChatTurn {
+export function createTurn(fields: Omit<ChatTurn, 'id' | 'createdAt'>): ChatTurn {
   return {
-    id: partial.id ?? generateId(),
-    createdAt: partial.createdAt ?? Date.now(),
-    query: partial.query,
-    answerRaw: partial.answerRaw,
-    sources: partial.sources,
-    model: partial.model,
-    generationMs: partial.generationMs,
-    ...(partial.thinkingRaw?.trim() ? { thinkingRaw: partial.thinkingRaw } : {}),
-    ...(partial.thinkingCapable === true ? { thinkingCapable: true } : {}),
-    ...(partial.error ? { error: partial.error } : {}),
+    id: generateId(),
+    createdAt: Date.now(),
+    ...fields,
   };
 }
 
