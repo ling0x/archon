@@ -234,7 +234,7 @@ const COPY_BTN_TITLE_ERR = 'Copy failed';
 function createPersistedThinkingDetails(text: string): HTMLElement {
   const details = document.createElement('details');
   details.className = 'turn-thinking-details turn-thinking-done';
-  details.open = true;
+  details.open = false;
 
   const summary = document.createElement('summary');
   summary.className = 'turn-thinking-summary';
@@ -265,6 +265,85 @@ function createLiveThinkingShell(): {
 
   details.append(summary, body);
   return { details, body };
+}
+
+type FormulationSnapshot = {
+  model?: string;
+  thinkingCapable?: boolean;
+  thinkingRaw?: string;
+  queries?: readonly string[];
+};
+
+function createFormulationDetails(snapshot: FormulationSnapshot): HTMLElement {
+  const details = document.createElement('details');
+  details.className = 'turn-formulation-details';
+  details.open = false;
+
+  const summary = document.createElement('summary');
+  summary.className = 'turn-formulation-summary';
+
+  const label = document.createElement('span');
+  label.className = 'turn-formulation-summary-label';
+  label.textContent = 'Search Formulation';
+  summary.appendChild(label);
+
+  if (snapshot.model?.trim()) {
+    const modelTag = document.createElement('span');
+    modelTag.className = 'turn-model-tag';
+    modelTag.textContent = snapshot.model.trim();
+    modelTag.title = `Formulation model: ${snapshot.model.trim()}`;
+    summary.appendChild(modelTag);
+  }
+  const reasoningTag = document.createElement('span');
+  reasoningTag.className = 'turn-model-tag';
+  reasoningTag.textContent = snapshot.thinkingCapable ? 'Reasoning' : 'No reasoning';
+  reasoningTag.title = snapshot.thinkingCapable
+    ? 'Formulation model reported thinking capability'
+    : 'Formulation model did not report thinking capability';
+  summary.appendChild(reasoningTag);
+
+  const body = document.createElement('div');
+  body.className = 'turn-formulation-body';
+
+  const hasQueries = Boolean(snapshot.queries && snapshot.queries.length > 0);
+  const hasThinking = Boolean(snapshot.thinkingRaw?.trim());
+  if (!hasQueries && !hasThinking) {
+    const empty = document.createElement('p');
+    empty.className = 'turn-formulation-empty';
+    empty.textContent = 'No formulation details captured.';
+    body.appendChild(empty);
+  } else {
+    if (hasQueries) {
+      const h = document.createElement('h4');
+      h.className = 'turn-formulation-heading';
+      h.textContent = 'Queries';
+      body.appendChild(h);
+
+      const ol = document.createElement('ol');
+      ol.className = 'turn-formulation-query-list';
+      for (const q of snapshot.queries ?? []) {
+        const li = document.createElement('li');
+        li.textContent = q;
+        ol.appendChild(li);
+      }
+      body.appendChild(ol);
+    }
+
+    if (hasThinking) {
+      const h = document.createElement('h4');
+      h.className = 'turn-formulation-heading';
+      h.textContent = 'Reasoning Stream';
+      body.appendChild(h);
+
+      const pre = document.createElement('pre');
+      pre.className = 'turn-formulation-thinking';
+      pre.textContent = snapshot.thinkingRaw?.trim() ?? '';
+      body.appendChild(pre);
+    }
+  }
+
+  details.append(summary, body);
+  return details;
 }
 
 function renderReferencesSection(parent: HTMLElement, results: SearchResult[]): void {
@@ -433,6 +512,9 @@ export type TurnUi = {
   setSources: (results: SearchResult[]) => void;
   setAnswerMarkdown: (raw: string) => void;
   appendThinkingChunk: (text: string) => void;
+  setFormulationMeta: (model: string, thinkingCapable: boolean) => void;
+  setFormulationQueries: (queries: readonly string[]) => void;
+  appendFormulationThinkingChunk: (text: string) => void;
 };
 
 export type ConversationView = {
@@ -523,6 +605,15 @@ export function createConversationView(
 
         const thinkingEl =
           turn.thinkingRaw?.trim() ? createPersistedThinkingDetails(turn.thinkingRaw.trim()) : null;
+        const formulationEl =
+          turn.formulationQueries?.length || turn.formulationThinkingRaw?.trim()
+            ? createFormulationDetails({
+                model: turn.formulationModel,
+                thinkingCapable: turn.formulationThinkingCapable === true,
+                thinkingRaw: turn.formulationThinkingRaw,
+                queries: turn.formulationQueries,
+              })
+            : null;
 
         const aEl = document.createElement('div');
         aEl.className = 'turn-answer markdown-body';
@@ -537,6 +628,7 @@ export function createConversationView(
         renderReferencesSection(refWrap, turn.sources);
 
         article.append(qEl);
+        if (formulationEl) article.appendChild(formulationEl);
         if (thinkingEl) article.appendChild(thinkingEl);
         article.append(aEl, refWrap, answerFooter);
         container.appendChild(article);
@@ -589,7 +681,30 @@ export function createConversationView(
       let turnSources: SearchResult[] = [];
       let answerSnapshot = '';
       let thinkingSnapshot = '';
+      let formulationModelSnapshot = '';
+      let formulationThinkingCapableSnapshot = false;
+      let formulationThinkingSnapshot = '';
+      let formulationQueriesSnapshot: string[] = [];
       let liveThinking: { details: HTMLDetailsElement; body: HTMLElement } | null = null;
+      let liveFormulation: HTMLElement | null = null;
+
+      function refreshFormulationDetails(): void {
+        const hasData =
+          formulationQueriesSnapshot.length > 0 || formulationThinkingSnapshot.trim().length > 0;
+        if (!hasData) return;
+        const next = createFormulationDetails({
+          model: formulationModelSnapshot || undefined,
+          thinkingCapable: formulationThinkingCapableSnapshot,
+          thinkingRaw: formulationThinkingSnapshot.trim() || undefined,
+          queries: formulationQueriesSnapshot,
+        });
+        if (liveFormulation) {
+          liveFormulation.replaceWith(next);
+        } else {
+          article.insertBefore(next, aEl);
+        }
+        liveFormulation = next;
+      }
 
       const exportCtl = attachExportMarkdownButton(answerFooter, () => ({
         query,
@@ -620,6 +735,21 @@ export function createConversationView(
           }
           liveThinking.body.textContent += text;
           exportCtl.refresh();
+          scrollToBottom();
+        },
+        setFormulationMeta(formulationModel: string, thinkingCapable: boolean) {
+          formulationModelSnapshot = formulationModel.trim();
+          formulationThinkingCapableSnapshot = thinkingCapable;
+        },
+        setFormulationQueries(queries: readonly string[]) {
+          formulationQueriesSnapshot = [...queries];
+          refreshFormulationDetails();
+          scrollToBottom();
+        },
+        appendFormulationThinkingChunk(text: string) {
+          if (!text) return;
+          formulationThinkingSnapshot += text;
+          refreshFormulationDetails();
           scrollToBottom();
         },
       };

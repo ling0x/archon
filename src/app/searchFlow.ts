@@ -114,14 +114,37 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
   status.set(`Formulating search queries (${SEARCH_FORMULATION_MODEL})…`);
 
   let searchQueries: string[] = [query];
+  let formulationPreview = '';
+  let formulationThinkingRaw = '';
+  const formulationThinkingCapable = await modelSupportsThinking(SEARCH_FORMULATION_MODEL);
+  turnUi.setFormulationMeta(SEARCH_FORMULATION_MODEL, formulationThinkingCapable);
   try {
-    searchQueries = await formulateSearchQueries(query, priorTurns);
+    searchQueries = await formulateSearchQueries(query, priorTurns, {
+      onThinkingChunk: (text) => {
+        if (!text.trim()) return;
+        formulationThinkingRaw += text;
+        turnUi.appendFormulationThinkingChunk(text);
+      },
+      onResponseChunk: (text) => {
+        formulationPreview += text;
+        const compact = formulationPreview.trim().replace(/\s+/g, ' ');
+        if (!compact) return;
+        const shown =
+          compact.length > MAX_QUERY_STATUS_LEN
+            ? `${compact.slice(0, MAX_QUERY_STATUS_LEN - 1)}…`
+            : compact;
+        status.set(
+          `Formulating search queries (${SEARCH_FORMULATION_MODEL})…\nDraft: ${shown}`,
+        );
+      },
+    });
   } catch {
     searchQueries = [query];
   }
   if (searchQueries.length === 0) {
     searchQueries = [query];
   }
+  turnUi.setFormulationQueries(searchQueries);
 
   setComposerBusyState(mainEl, 'searching');
 
@@ -157,6 +180,14 @@ export async function runSearch(query: string, deps: SearchFlowDeps): Promise<vo
       answerRaw,
       thinkingRaw: thinkingRaw.trim() || undefined,
       ...(thinkingCapable ? { thinkingCapable: true as const } : {}),
+      formulationModel: SEARCH_FORMULATION_MODEL,
+      ...(formulationThinkingCapable
+        ? { formulationThinkingCapable: true as const }
+        : {}),
+      ...(formulationThinkingRaw.trim()
+        ? { formulationThinkingRaw: formulationThinkingRaw.trim() }
+        : {}),
+      ...(searchQueries.length > 0 ? { formulationQueries: [...searchQueries] } : {}),
       sources: results,
       model,
       generationMs,

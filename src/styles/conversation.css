@@ -146,6 +146,102 @@
   border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
 }
 
+.turn-formulation-details {
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+}
+
+.turn-formulation-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  list-style: none;
+  cursor: pointer;
+  padding: 0.55rem 1.1rem;
+  user-select: none;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.turn-formulation-summary::-webkit-details-marker {
+  display: none;
+}
+
+.turn-formulation-summary::before {
+  content: "";
+  display: block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-right: 0.15rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(-45deg);
+  flex-shrink: 0;
+  transition: transform 0.12s ease;
+}
+
+.turn-formulation-details[open] > .turn-formulation-summary::before {
+  transform: rotate(45deg);
+  margin-top: -0.12rem;
+}
+
+.turn-formulation-summary:hover,
+.turn-formulation-details[open] > .turn-formulation-summary {
+  color: var(--text);
+}
+
+.turn-formulation-summary:hover::before,
+.turn-formulation-details[open] > .turn-formulation-summary::before {
+  border-color: var(--accent-hover);
+}
+
+.turn-formulation-summary-label {
+  flex-shrink: 0;
+}
+
+.turn-formulation-body {
+  padding: 0.2rem 1.1rem 0.9rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.turn-formulation-heading {
+  margin: 0.35rem 0 0.4rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.turn-formulation-query-list {
+  margin: 0 0 0.55rem;
+  padding-left: 1.1rem;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.turn-formulation-thinking {
+  margin: 0;
+  max-height: min(30vh, 16rem);
+  overflow: auto;
+  font-family:
+    ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--blockquote-fg);
+}
+
+.turn-formulation-empty {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
 .turn-model-tag {
   flex-shrink: 0;
   align-self: flex-start;

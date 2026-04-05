@@ -1,3 +1,5 @@
+import { defaultThinkParameter, modelSupportsThinking } from './modelCapabilities';
+
 export interface OllamaStreamChunk {
   model: string;
   response: string;
@@ -127,12 +129,18 @@ function parseQueriesFromModelResponse(raw: string, fallback: string): string[] 
   return uniq.length > 0 ? uniq : [fb];
 }
 
+export type FormulationProgressHandlers = {
+  onThinkingChunk?: (text: string) => void;
+  onResponseChunk?: (text: string) => void;
+};
+
 /**
  * Split the user’s message (with optional prior turns) into 1–3 SearXNG sub-queries using a fixed small model.
  */
 export async function formulateSearchQueries(
   userMessage: string,
   priorTurns: readonly PriorTurn[],
+  progress?: FormulationProgressHandlers,
 ): Promise<string[]> {
   const prior = buildPriorBlockForFormulation(priorTurns);
   const system = [
@@ -143,43 +151,80 @@ export async function formulateSearchQueries(
     'Use 1 query only when the message is narrowly about one fact, one product, or one named thing.',
     'If the message lists multiple topics, skill areas, technologies, book types, or requirements (e.g. long job specs, reading lists, or several unrelated themes), you MUST return 3 strings that cover different facets—never collapse everything into one vague query like "books to read" or "software engineering tips".',
     'Split broad asks into complementary angles: each major theme the user named should get keywords in at least one of the three strings (e.g. separate strings for distinct stacks, book genres, or problem domains they listed).',
-    'Read the entire "Earlier in this conversation" block. Assistant replies often name products, versions, images, APIs, errors, file formats, or topics.',
-    'When the latest user message is short or vague ("that service", "is it secure", "what about ports"), resolve what they mean using the prior user questions and especially the prior Assistant answers, then bake those concrete terms into the search queries.',
+    'The PRIMARY information need is always the latest user message. When it names a specific concept, product, error, or technical term (e.g. "read through cache", "CAP theorem"), your queries must center on that wording; do not substitute unrelated topics from earlier turns.',
+    'Read the "Earlier in this conversation" block only for disambiguation or to add missing identifiers. Never let an old topic replace what the latest message explicitly asks about.',
+    'When the latest message is short or vague ("that service", "is it secure", "what about ports"), resolve what they mean using prior user questions and especially prior Assistant answers, then bake those concrete terms into the search queries.',
+    'When the latest message clearly introduces a new subject, prior turns are background only—at most add clarifying keywords, not a different question.',
     'If the follow-up is about something introduced in a prior Assistant answer (e.g. a docker-compose service, a library, a flag), include those identifiers in the queries so results match the same subject.',
   ].join(' ');
 
   const prompt = [
+    'Primary question (every search string must directly serve this; repeat its key terms unless the message is only pronouns/vague references):',
+    userMessage,
+    '',
     prior,
-    'Use the conversation above so the queries match the same topic as the latest message.',
-    'If the latest message is long or covers several subjects, output 3 queries that split those subjects; do not summarize the whole message into a single generic search.',
-    `Latest user message: ${userMessage}`,
+    'Use earlier turns only to disambiguate or enrich the primary question above—not to ignore it.',
+    'If the primary question is long or covers several subjects, output 3 queries that split those subjects; do not summarize the whole message into a single generic search.',
     '',
     'Output only the JSON array.',
   ].join('\n');
 
+  const supportsThinking = await modelSupportsThinking(SEARCH_FORMULATION_MODEL);
+  const think = supportsThinking
+    ? defaultThinkParameter(SEARCH_FORMULATION_MODEL)
+    : undefined;
+
+  const body: Record<string, unknown> = {
+    model: SEARCH_FORMULATION_MODEL,
+    system,
+    prompt,
+    stream: true,
+    options: {
+      temperature: 0.15,
+      num_predict: 512,
+      num_ctx: SEARCH_FORMULATION_NUM_CTX,
+    },
+  };
+  if (think !== undefined) body.think = think;
+
   const res = await fetch('/ollama/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: SEARCH_FORMULATION_MODEL,
-      system,
-      prompt,
-      stream: false,
-      options: {
-        temperature: 0.15,
-        num_predict: 512,
-        num_ctx: SEARCH_FORMULATION_NUM_CTX,
-      },
-    }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
     throw new Error(`Ollama error: ${res.status} ${res.statusText}`);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = (await res.json()) as any;
-  const text = typeof data.response === 'string' ? data.response : '';
+  if (!res.body) throw new Error('No response body from Ollama');
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const lines = decoder.decode(value, { stream: true }).split('\n').filter(Boolean);
+    for (const line of lines) {
+      try {
+        const chunk: OllamaStreamChunk = JSON.parse(line);
+        if (chunk.thinking) {
+          progress?.onThinkingChunk?.(chunk.thinking);
+        }
+        if (chunk.response) {
+          text += chunk.response;
+          progress?.onResponseChunk?.(chunk.response);
+        }
+        if (chunk.done) return parseQueriesFromModelResponse(text, userMessage);
+      } catch {
+        // skip malformed lines
+      }
+    }
+  }
+
   return parseQueriesFromModelResponse(text, userMessage);
 }
 

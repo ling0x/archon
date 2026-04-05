@@ -9,6 +9,14 @@ export interface ChatTurn {
   thinkingRaw?: string;
   /** True when the model reported the `thinking` capability for this turn. */
   thinkingCapable?: boolean;
+  /** Model used to formulate search queries. */
+  formulationModel?: string;
+  /** True when the formulation model reported `thinking` capability for this turn. */
+  formulationThinkingCapable?: boolean;
+  /** Optional reasoning trace from the formulation model. */
+  formulationThinkingRaw?: string;
+  /** Final search queries used for retrieval in this turn. */
+  formulationQueries?: string[];
   sources: SearchResult[];
   model: string;
   /** Streaming time for the model reply (ms); excludes search/query formulation. */
@@ -63,6 +71,23 @@ function isChatTurn(raw: unknown): raw is ChatTurn {
   if (t.error != null && typeof t.error !== 'string') return false;
   if (t.thinkingRaw != null && typeof t.thinkingRaw !== 'string') return false;
   if (t.thinkingCapable != null && typeof t.thinkingCapable !== 'boolean') return false;
+  if (t.formulationModel != null && typeof t.formulationModel !== 'string') return false;
+  if (
+    t.formulationThinkingCapable != null &&
+    typeof t.formulationThinkingCapable !== 'boolean'
+  ) {
+    return false;
+  }
+  if (t.formulationThinkingRaw != null && typeof t.formulationThinkingRaw !== 'string') {
+    return false;
+  }
+  if (
+    t.formulationQueries != null &&
+    (!Array.isArray(t.formulationQueries) ||
+      !t.formulationQueries.every((q) => typeof q === 'string'))
+  ) {
+    return false;
+  }
   return true;
 }
 
