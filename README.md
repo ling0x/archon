@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="static/logo_text.png" alt="Archon" width="300" />
+  <img src="static/archon_logo.png" alt="Archon" width="300" />
 </p>
 
 # Archon
