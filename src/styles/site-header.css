@@ -85,13 +85,12 @@
 .site-logo {
   display: block;
   height: auto;
-  max-height: 52px;
+  max-height: 60px;
   width: auto;
-  max-width: min(100%, 320px);
+  max-width: min(100%, 60px);
   object-fit: contain;
   flex-shrink: 0;
-  border-radius: 50%;
-  box-shadow: 0 2px 12px var(--logo-glow);
+  margin: 0 auto;
 }
 
 .site-header-text {
@@ -99,6 +98,7 @@
 }
 
 .site-header h1 {
+  display: none;
   font-size: 2.4rem;
   font-weight: 700;
   letter-spacing: -0.02em;
