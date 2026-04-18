@@ -48,4 +48,8 @@ export function setComposerBusyState(
     const inactive = sel.classList.contains('is-followup-inactive');
     sel.disabled = busy || inactive;
   });
+  mainEl.querySelectorAll<HTMLInputElement>('.archon-deep-toggle').forEach((cb) => {
+    const inactive = cb.classList.contains('is-followup-inactive');
+    cb.disabled = busy || inactive;
+  });
 }

@@ -76,7 +76,11 @@ const RRF_K = 60;
  * top maxTotal. For a URL that appears in multiple lists, keeps title/snippet from the
  * list where it ranked highest (lowest 1-based rank).
  */
-function mergeSearchResultsRankFusion(
+/**
+ * Merge any number of ranked result lists with reciprocal rank fusion (RRF),
+ * dedupe by URL, return top `maxTotal`. Use to combine multi-round search batches.
+ */
+export function mergeRankedSearchResultLists(
   batches: readonly (readonly SearchResult[])[],
   maxTotal: number,
 ): SearchResult[] {
@@ -144,5 +148,5 @@ export async function searchSearXNGMulti(
     }),
   );
 
-  return mergeSearchResultsRankFusion(batches, maxTotal);
+  return mergeRankedSearchResultLists(batches, maxTotal);
 }

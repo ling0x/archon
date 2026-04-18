@@ -8,6 +8,26 @@ import { createStatusBar, statusSlotForSubmittedForm } from './ui/statusBar';
 import { initModelSelect } from './modelPicker';
 import { initTheme, syncThemeToggleButton, toggleTheme } from './theme';
 
+const DEEP_RESEARCH_STORAGE_KEY = 'archon-deep-research';
+
+function initDeepResearchToggles(mainEl: HTMLElement): void {
+  const on = localStorage.getItem(DEEP_RESEARCH_STORAGE_KEY) === '1';
+  mainEl.querySelectorAll<HTMLInputElement>('.archon-deep-toggle').forEach((el) => {
+    el.checked = on;
+  });
+  mainEl.addEventListener('change', (e) => {
+    const t = e.target;
+    if (!(t instanceof HTMLInputElement) || !t.classList.contains('archon-deep-toggle')) {
+      return;
+    }
+    const v = t.checked;
+    mainEl.querySelectorAll<HTMLInputElement>('.archon-deep-toggle').forEach((el) => {
+      el.checked = v;
+    });
+    localStorage.setItem(DEEP_RESEARCH_STORAGE_KEY, v ? '1' : '0');
+  });
+}
+
 const theme = initTheme();
 const el = getAppElements();
 syncThemeToggleButton(el.themeToggleBtn, theme);
@@ -44,6 +64,8 @@ chatSession = createChatSessionController({
 el.newChatBtn.addEventListener('click', () => chatSession.beginNew());
 
 sidebar.bind();
+
+initDeepResearchToggles(el.mainEl);
 
 /** Enter submits; Shift+Enter inserts a newline (IME-safe). */
 el.mainEl.addEventListener('keydown', (e) => {
@@ -92,6 +114,8 @@ el.mainEl.addEventListener('submit', async (e) => {
   if (!parsed) return;
 
   const statusSlot = statusSlotForSubmittedForm(form, el.statusEl);
+  const deepToggle = form.querySelector<HTMLInputElement>('.archon-deep-toggle');
+  const deepResearch = deepToggle?.checked ?? false;
 
   await runSearch(parsed.query, {
     status,
@@ -101,6 +125,7 @@ el.mainEl.addEventListener('submit', async (e) => {
     input: el.input,
     mainEl: el.mainEl,
     modelSelect: el.modelSelect,
+    deepResearch,
   });
 
   parsed.input.value = '';
