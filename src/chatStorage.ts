@@ -17,6 +17,12 @@ export interface ChatTurn {
   formulationThinkingRaw?: string;
   /** Final search queries used for retrieval in this turn. */
   formulationQueries?: string[];
+  /** Deep research: sub-questions / sections planned before search. */
+  researchPlan?: string[];
+  /** Deep research pass 1: bullet notes (optional persistence). */
+  researchNotesRaw?: string;
+  /** Retrieval used deep mode (multi-round, extraction, two-pass). */
+  deepResearch?: boolean;
   sources: SearchResult[];
   model: string;
   /** Streaming time for the model reply (ms); excludes search/query formulation. */
@@ -88,6 +94,14 @@ function isChatTurn(raw: unknown): raw is ChatTurn {
   ) {
     return false;
   }
+  if (
+    t.researchPlan != null &&
+    (!Array.isArray(t.researchPlan) || !t.researchPlan.every((s) => typeof s === 'string'))
+  ) {
+    return false;
+  }
+  if (t.researchNotesRaw != null && typeof t.researchNotesRaw !== 'string') return false;
+  if (t.deepResearch != null && typeof t.deepResearch !== 'boolean') return false;
   return true;
 }
 

@@ -10,6 +10,8 @@ type TurnExportPayload = Pick<ChatTurn, 'query' | 'model' | 'answerRaw' | 'sourc
   thinkingRaw?: string;
   error?: string;
   generationMs?: number;
+  researchPlan?: string[];
+  researchNotesRaw?: string;
 };
 
 function slugForFilename(text: string, maxLen = 40): string {
@@ -46,6 +48,21 @@ function buildTurnMarkdownForExport(t: TurnExportPayload): string {
     parts.push('## Reasoning trace\n\n');
     parts.push('```\n');
     parts.push(`${t.thinkingRaw.trim()}\n`);
+    parts.push('```\n\n');
+  }
+
+  if (t.researchPlan && t.researchPlan.length > 0) {
+    parts.push('## Research plan\n\n');
+    t.researchPlan.forEach((s, i) => {
+      parts.push(`${i + 1}. ${s}\n`);
+    });
+    parts.push('\n');
+  }
+
+  if (t.researchNotesRaw?.trim()) {
+    parts.push('## Draft research notes (pass 1)\n\n');
+    parts.push('```\n');
+    parts.push(`${t.researchNotesRaw.trim()}\n`);
     parts.push('```\n\n');
   }
 
@@ -346,6 +363,52 @@ function createFormulationDetails(snapshot: FormulationSnapshot): HTMLElement {
   return details;
 }
 
+function createResearchPlanDetails(steps: readonly string[]): HTMLElement {
+  const details = document.createElement('details');
+  details.className = 'turn-research-plan-details';
+  details.open = false;
+
+  const summary = document.createElement('summary');
+  summary.className = 'turn-research-plan-summary';
+
+  const label = document.createElement('span');
+  label.className = 'turn-research-plan-summary-label';
+  label.textContent = 'Research plan';
+
+  summary.appendChild(label);
+
+  const body = document.createElement('div');
+  body.className = 'turn-research-plan-body';
+
+  const ol = document.createElement('ol');
+  ol.className = 'turn-research-plan-list';
+  for (const s of steps) {
+    const li = document.createElement('li');
+    li.textContent = s;
+    ol.appendChild(li);
+  }
+  body.appendChild(ol);
+  details.append(summary, body);
+  return details;
+}
+
+function createResearchNotesDetails(text: string): HTMLElement {
+  const details = document.createElement('details');
+  details.className = 'turn-research-notes-details';
+  details.open = false;
+
+  const summary = document.createElement('summary');
+  summary.className = 'turn-research-notes-summary';
+  summary.textContent = 'Draft research notes (pass 1)';
+
+  const pre = document.createElement('pre');
+  pre.className = 'turn-research-notes-body';
+  pre.textContent = text.trim();
+
+  details.append(summary, pre);
+  return details;
+}
+
 function renderReferencesSection(parent: HTMLElement, results: SearchResult[]): void {
   parent.innerHTML = '';
   if (results.length === 0) {
@@ -486,6 +549,20 @@ function createFollowupSlot(isLast: boolean): HTMLElement {
     modelCluster.appendChild(modelWrap);
   }
 
+  const tplDeep = document.querySelector<HTMLElement>('#search-form .deep-research-field');
+  if (tplDeep) {
+    const deepEl = tplDeep.cloneNode(true) as HTMLElement;
+    const inp = deepEl.querySelector<HTMLInputElement>('.archon-deep-toggle');
+    inp?.removeAttribute('id');
+    if (!isLast) {
+      deepEl.classList.add('is-followup-inactive');
+      inp?.classList.add('is-followup-inactive');
+    }
+    const mainToggle = document.querySelector<HTMLInputElement>('#deep-research-toggle');
+    if (inp && mainToggle) inp.checked = mainToggle.checked;
+    modelCluster.appendChild(deepEl);
+  }
+
   const btn = document.createElement('button');
   btn.type = 'submit';
   btn.className = 'composer-submit-btn turn-followup-submit';
@@ -515,6 +592,7 @@ export type TurnUi = {
   setFormulationMeta: (model: string, thinkingCapable: boolean) => void;
   setFormulationQueries: (queries: readonly string[]) => void;
   appendFormulationThinkingChunk: (text: string) => void;
+  setResearchPlan: (steps: readonly string[]) => void;
 };
 
 export type ConversationView = {
@@ -615,6 +693,16 @@ export function createConversationView(
               })
             : null;
 
+        const researchPlanEl =
+          turn.researchPlan && turn.researchPlan.length > 0
+            ? createResearchPlanDetails(turn.researchPlan)
+            : null;
+
+        const researchNotesEl =
+          turn.researchNotesRaw?.trim() && turn.deepResearch
+            ? createResearchNotesDetails(turn.researchNotesRaw)
+            : null;
+
         const aEl = document.createElement('div');
         aEl.className = 'turn-answer markdown-body';
 
@@ -629,6 +717,8 @@ export function createConversationView(
 
         article.append(qEl);
         if (formulationEl) article.appendChild(formulationEl);
+        if (researchPlanEl) article.appendChild(researchPlanEl);
+        if (researchNotesEl) article.appendChild(researchNotesEl);
         if (thinkingEl) article.appendChild(thinkingEl);
         article.append(aEl, refWrap, answerFooter);
         container.appendChild(article);
@@ -685,8 +775,10 @@ export function createConversationView(
       let formulationThinkingCapableSnapshot = false;
       let formulationThinkingSnapshot = '';
       let formulationQueriesSnapshot: string[] = [];
+      let researchPlanSnapshot: string[] = [];
       let liveThinking: { details: HTMLDetailsElement; body: HTMLElement } | null = null;
       let liveFormulation: HTMLElement | null = null;
+      let liveResearchPlan: HTMLElement | null = null;
 
       function refreshFormulationDetails(): void {
         const hasData =
@@ -706,12 +798,24 @@ export function createConversationView(
         liveFormulation = next;
       }
 
+      function refreshResearchPlanDetails(): void {
+        if (researchPlanSnapshot.length === 0) return;
+        const next = createResearchPlanDetails(researchPlanSnapshot);
+        if (liveResearchPlan) {
+          liveResearchPlan.replaceWith(next);
+        } else {
+          article.insertBefore(next, aEl);
+        }
+        liveResearchPlan = next;
+      }
+
       const exportCtl = attachExportMarkdownButton(answerFooter, () => ({
         query,
         model,
         answerRaw: answerSnapshot,
         thinkingRaw: thinkingSnapshot.trim() || undefined,
         sources: turnSources,
+        researchPlan: researchPlanSnapshot.length > 0 ? [...researchPlanSnapshot] : undefined,
       }));
 
       return {
@@ -750,6 +854,11 @@ export function createConversationView(
           if (!text) return;
           formulationThinkingSnapshot += text;
           refreshFormulationDetails();
+          scrollToBottom();
+        },
+        setResearchPlan(steps: readonly string[]) {
+          researchPlanSnapshot = [...steps];
+          refreshResearchPlanDetails();
           scrollToBottom();
         },
       };

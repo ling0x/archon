@@ -105,3 +105,22 @@
   opacity: 0.45;
   pointer-events: none;
 }
+
+.deep-research-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  user-select: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.deep-research-field input {
+  cursor: pointer;
+  accent-color: var(--accent);
+}
