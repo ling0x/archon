@@ -1,3 +1,7 @@
+// =============================================================================
+// Theme Management
+// =============================================================================
+
 import hljsDarkUrl from 'highlight.js/styles/github-dark.css?url';
 import hljsLightUrl from 'highlight.js/styles/github.css?url';
 
@@ -25,7 +29,7 @@ export function getStoredTheme(): Theme | null {
     const raw = localStorage.getItem(THEME_STORAGE_KEY);
     if (raw === 'light' || raw === 'dark') return raw;
   } catch {
-    /* ignore */
+    // ignore
   }
   return null;
 }
@@ -36,12 +40,14 @@ export function getEffectiveTheme(): Theme {
 
 export function applyTheme(theme: Theme): void {
   document.documentElement.dataset.theme = theme;
+
   const link = ensureHljsLink();
   link.href = theme === 'light' ? hljsLightUrl : hljsDarkUrl;
+
   try {
     localStorage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
-    /* ignore */
+    // ignore
   }
 }
 
@@ -59,8 +65,9 @@ export function initTheme(): Theme {
 
 export function syncThemeToggleButton(btn: HTMLButtonElement, theme: Theme): void {
   const isLight = theme === 'light';
+  const label = isLight ? 'Switch to dark mode' : 'Switch to light mode';
   btn.setAttribute('aria-pressed', isLight ? 'true' : 'false');
-  btn.title = isLight ? 'Switch to dark mode' : 'Switch to light mode';
-  btn.setAttribute('aria-label', isLight ? 'Switch to dark mode' : 'Switch to light mode');
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
   btn.textContent = isLight ? '☾' : '☀';
 }

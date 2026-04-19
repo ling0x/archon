@@ -1,3 +1,7 @@
+// =============================================================================
+// Session State
+// =============================================================================
+
 let currentChatId: string | null = null;
 
 export function getCurrentChatId(): string | null {

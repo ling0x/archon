@@ -1,34 +1,41 @@
+// =============================================================================
+// Model Picker
+// =============================================================================
+
 import { capabilitiesIncludeThinking, fetchModelCapabilities } from './modelCapabilities';
 
 const STORAGE_KEY = 'archon-ollama-model';
 const FALLBACK_MODEL: string = __OLLAMA_FALLBACK_MODEL__;
 
-function syncAllModelSelectsFrom(source: HTMLSelectElement): void {
+function syncAllModelSelects(source: HTMLSelectElement): void {
   const html = source.innerHTML;
   const val = source.value;
+
   document.querySelectorAll<HTMLSelectElement>('.composer-model-select').forEach((s) => {
     if (s === source) return;
     s.innerHTML = html;
     s.value = val;
   });
+
   localStorage.setItem(STORAGE_KEY, val);
 }
 
-/** Show a “Reasoning” tag in each composer when the Ollama model reports the `thinking` capability. */
 export async function refreshReasoningTagForModel(model: string): Promise<void> {
   const caps = await fetchModelCapabilities(model);
   const supported = capabilitiesIncludeThinking(caps);
+
   document.querySelectorAll<HTMLElement>('.composer-reasoning-tag').forEach((el) => {
     const inactive = el.classList.contains('is-followup-inactive');
-    el.classList.toggle('hidden', !supported || inactive);
-    el.setAttribute('aria-hidden', !supported || inactive ? 'true' : 'false');
+    const hidden = !supported || inactive;
+    el.classList.toggle('hidden', hidden);
+    el.setAttribute('aria-hidden', hidden ? 'true' : 'false');
   });
 }
 
-/** Copy options + value from primary to every other `.composer-model-select` (e.g. after load or new follow-up). */
-export function replicateModelSelectOptionsFrom(primary: HTMLSelectElement): void {
+function replicateModelOptionsFrom(primary: HTMLSelectElement): void {
   const html = primary.innerHTML;
   const val = primary.value;
+
   document.querySelectorAll<HTMLSelectElement>('.composer-model-select').forEach((s) => {
     if (s === primary) return;
     s.innerHTML = html;
@@ -38,9 +45,10 @@ export function replicateModelSelectOptionsFrom(primary: HTMLSelectElement): voi
 
 export async function initModelSelect(
   primarySelect: HTMLSelectElement,
-  mainPanel: HTMLElement | null = primarySelect.closest('#main-panel'),
+  mainPanel?: HTMLElement | null,
 ): Promise<void> {
   let names: string[] = [];
+
   try {
     const res = await fetch('/ollama/api/tags');
     if (!res.ok) throw new Error(String(res.status));
@@ -62,6 +70,7 @@ export async function initModelSelect(
     primarySelect.value = FALLBACK_MODEL;
   } else {
     names.sort((a, b) => a.localeCompare(b));
+
     for (const name of names) {
       const opt = document.createElement('option');
       opt.value = name;
@@ -79,19 +88,19 @@ export async function initModelSelect(
     }
   }
 
-  replicateModelSelectOptionsFrom(primarySelect);
-
+  replicateModelOptionsFrom(primarySelect);
   void refreshReasoningTagForModel(getSelectedModel(primarySelect));
 
-  if (mainPanel && !mainPanel.dataset.archonModelSyncBound) {
-    mainPanel.dataset.archonModelSyncBound = '1';
-    mainPanel.addEventListener('change', (e) => {
-      const t = e.target;
-      if (!(t instanceof HTMLSelectElement) || !t.classList.contains('composer-model-select')) {
+  const panel = (mainPanel ?? primarySelect.closest('#main-panel')) as HTMLElement | null;
+  if (panel && !panel.dataset.archonModelSyncBound) {
+    panel.dataset.archonModelSyncBound = '1';
+    panel.addEventListener('change', (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLSelectElement) || !target.classList.contains('composer-model-select')) {
         return;
       }
-      syncAllModelSelectsFrom(t);
-      void refreshReasoningTagForModel(t.value?.trim() || FALLBACK_MODEL);
+      syncAllModelSelects(target);
+      void refreshReasoningTagForModel(target.value?.trim() || FALLBACK_MODEL);
     });
   }
 }

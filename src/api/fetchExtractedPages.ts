@@ -1,9 +1,13 @@
-export type ExtractPagesResponse = {
+// =============================================================================
+// Page Text Extraction
+// =============================================================================
+
+export interface ExtractPagesResponse {
   pages: Record<string, { text?: string; error?: string }>;
-};
+}
 
 /**
- * POST /api/extract — full-page text via Vite dev/preview middleware (not available in static deploy without a backend).
+ * Fetch full-page text via Vite dev/preview middleware.
  */
 export async function fetchExtractedTexts(urls: readonly string[]): Promise<Map<string, string>> {
   const out = new Map<string, string>();
@@ -35,5 +39,6 @@ export async function fetchExtractedTexts(urls: readonly string[]): Promise<Map<
     const t = row?.text?.trim();
     if (t) out.set(url, t);
   }
+
   return out;
 }

@@ -1,3 +1,7 @@
+// =============================================================================
+// Formatting Utilities
+// =============================================================================
+
 export function truncate(s: string, max: number): string {
   const t = s.trim();
   if (t.length <= max) return t;
