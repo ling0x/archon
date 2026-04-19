@@ -1,13 +1,19 @@
+// =============================================================================
+// SearXNG Search Service
+// =============================================================================
+
 export interface SearchResult {
   title: string;
   url: string;
   content: string;
-  /** ISO-like date string when the engine provides it (recency for the model). */
   publishedDate?: string;
-  /** SearXNG backend that returned this hit (provenance). */
   engine?: string;
 }
 
+// RRF constant from fusion literature
+const RRF_K = 60;
+
+/** Search SearXNG for a single query. */
 export async function searchSearXNG(query: string, numResults = 8): Promise<SearchResult[]> {
   const params = new URLSearchParams({
     q: query,
@@ -24,7 +30,6 @@ export async function searchSearXNG(query: string, numResults = 8): Promise<Sear
   }
 
   const data = await res.json();
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data.results as any[]).slice(0, numResults).map(parseSearxResultRow);
 }
@@ -35,7 +40,6 @@ function pickOptionalString(v: unknown): string | undefined {
   return t.length > 0 ? t : undefined;
 }
 
-/** Normalize one SearXNG JSON result row (field names vary slightly by engine). */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function parseSearxResultRow(r: any): SearchResult {
   const publishedDate = pickOptionalString(r.publishedDate);
@@ -54,32 +58,22 @@ function parseSearxResultRow(r: any): SearchResult {
   };
 }
 
-/** First occurrence wins; compares normalized URLs. */
+/** Dedupe search results by URL (case-insensitive). */
 export function dedupeSearchResultsByUrl(results: SearchResult[]): SearchResult[] {
   const seen = new Set<string>();
   const out: SearchResult[] = [];
+
   for (const r of results) {
     const key = r.url.trim().toLowerCase();
     if (!key || seen.has(key)) continue;
     seen.add(key);
     out.push(r);
   }
+
   return out;
 }
 
-/** RRF constant; common default in fusion literature (e.g. Cormack et al.). */
-const RRF_K = 60;
-
-/**
- * Merge ranked result lists from parallel queries: dedupe by URL, score each URL with
- * reciprocal rank fusion (sum of 1/(k + rank) per list it appears in), then take the
- * top maxTotal. For a URL that appears in multiple lists, keeps title/snippet from the
- * list where it ranked highest (lowest 1-based rank).
- */
-/**
- * Merge any number of ranked result lists with reciprocal rank fusion (RRF),
- * dedupe by URL, return top `maxTotal`. Use to combine multi-round search batches.
- */
+/** Merge ranked result lists using Reciprocal Rank Fusion. */
 export function mergeRankedSearchResultLists(
   batches: readonly (readonly SearchResult[])[],
   maxTotal: number,
@@ -117,25 +111,15 @@ export function mergeRankedSearchResultLists(
   return merged.slice(0, maxTotal).map((x) => x.result);
 }
 
-export type SearchSearXNGMultiOptions = {
-  /** Max hits per sub-query (default 8). */
-  perQuery?: number;
-  /** Cap after deduping (default 16). */
-  maxTotal?: number;
-};
-
-/**
- * Run up to 3 distinct queries in parallel (up to perQuery hits each), merge all hits with
- * global RRF ranking and dedupe by URL, then return the top maxTotal.
- * Failed sub-queries yield no hits for that line only.
- */
+/** Run multiple queries in parallel and merge results. */
 export async function searchSearXNGMulti(
   queries: readonly string[],
-  opts?: SearchSearXNGMultiOptions,
+  opts?: { perQuery?: number; maxTotal?: number },
 ): Promise<SearchResult[]> {
   const perQuery = opts?.perQuery ?? 8;
   const maxTotal = opts?.maxTotal ?? 16;
   const normalized = [...new Set(queries.map((q) => q.trim()).filter(Boolean))].slice(0, 3);
+
   if (normalized.length === 0) return [];
 
   const batches = await Promise.all(

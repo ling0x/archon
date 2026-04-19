@@ -1,4 +1,5 @@
-import { createChatSessionController, type ChatSessionController } from './app/chatSession';
+import { createChatSessionController } from './app/chatSession';
+import type { ChatSessionController } from './types';
 import { runSearch } from './app/searchFlow';
 import { createConversationView } from './ui/conversation';
 import { getAppElements } from './ui/dom';
@@ -7,129 +8,106 @@ import { createMobileSidebar } from './ui/sidebar';
 import { createStatusBar, statusSlotForSubmittedForm } from './ui/statusBar';
 import { initModelSelect } from './modelPicker';
 import { initTheme, syncThemeToggleButton, toggleTheme } from './theme';
+import { getFormDataFromSubmitEvent } from './hooks/form';
+import { syncDeepResearchToggle } from './hooks/deepResearch';
 
-const DEEP_RESEARCH_STORAGE_KEY = 'archon-deep-research';
-
-function initDeepResearchToggles(mainEl: HTMLElement): void {
-  const on = localStorage.getItem(DEEP_RESEARCH_STORAGE_KEY) === '1';
-  mainEl.querySelectorAll<HTMLInputElement>('.archon-deep-toggle').forEach((el) => {
-    el.checked = on;
-  });
-  mainEl.addEventListener('change', (e) => {
-    const t = e.target;
-    if (!(t instanceof HTMLInputElement) || !t.classList.contains('archon-deep-toggle')) {
-      return;
-    }
-    const v = t.checked;
-    mainEl.querySelectorAll<HTMLInputElement>('.archon-deep-toggle').forEach((el) => {
-      el.checked = v;
-    });
-    localStorage.setItem(DEEP_RESEARCH_STORAGE_KEY, v ? '1' : '0');
-  });
-}
+// =============================================================================
+// Theme Initialization
+// =============================================================================
 
 const theme = initTheme();
-const el = getAppElements();
-syncThemeToggleButton(el.themeToggleBtn, theme);
-el.themeToggleBtn.addEventListener('click', () => {
-  syncThemeToggleButton(el.themeToggleBtn, toggleTheme());
+const { themeToggleBtn } = getAppElements();
+syncThemeToggleButton(themeToggleBtn, theme);
+themeToggleBtn.addEventListener('click', () => {
+  syncThemeToggleButton(themeToggleBtn, toggleTheme());
 });
 
-const status = createStatusBar(el.statusEl, el.mainEl);
-const conversation = createConversationView(el.conversationEl, el.conversationSec);
+// =============================================================================
+// UI Components
+// =============================================================================
+
+const { statusEl, mainEl, conversationEl, conversationSec } = getAppElements();
+const status = createStatusBar(statusEl, mainEl);
+const conversation = createConversationView(conversationEl, conversationSec);
 
 const sidebar = createMobileSidebar({
-  appShell: el.appShell,
-  backdrop: el.sidebarBackdrop,
-  toggleBtn: el.sidebarOpenBtn,
+  appShell: getAppElements().appShell,
+  backdrop: getAppElements().sidebarBackdrop,
+  toggleBtn: getAppElements().sidebarOpenBtn,
 });
+
+// =============================================================================
+// Deep Research Toggle Sync
+// =============================================================================
+
+syncDeepResearchToggle(mainEl);
+
+// =============================================================================
+// Chat History
+// =============================================================================
 
 let chatSession: ChatSessionController;
 
 const history = createChatHistoryView({
-  listEl: el.chatHistoryEl,
+  listEl: getAppElements().chatHistoryEl,
   onSelect: (id) => chatSession.selectById(id),
 });
 
+// =============================================================================
+// Chat Session Controller
+// =============================================================================
+
+const elements = getAppElements();
 chatSession = createChatSessionController({
-  input: el.input,
+  input: elements.input,
   status,
-  mainStatusSlot: el.statusEl,
+  mainStatusSlot: elements.statusEl,
   conversation,
   history,
-  mainEl: el.mainEl,
+  mainEl: elements.mainEl,
   onAfterNavigate: () => sidebar.close(),
 });
 
-el.newChatBtn.addEventListener('click', () => chatSession.beginNew());
-
+elements.newChatBtn.addEventListener('click', () => chatSession.beginNew());
 sidebar.bind();
 
-initDeepResearchToggles(el.mainEl);
-
-/** Enter submits; Shift+Enter inserts a newline (IME-safe). */
-el.mainEl.addEventListener('keydown', (e) => {
-  if (e.key !== 'Enter' || e.shiftKey) return;
-  if (e.isComposing) return;
-  const t = e.target;
-  if (!(t instanceof HTMLTextAreaElement)) return;
-  if (!t.classList.contains('composer-input')) return;
-  if (t.disabled || t.classList.contains('is-followup-inactive')) return;
-  e.preventDefault();
-  if (!t.value.trim()) return;
-  const form = t.form;
-  if (form && (form.id === 'search-form' || form.classList.contains('turn-followup'))) {
-    form.requestSubmit();
-  }
+// Handle chat deletion (when active chat is deleted)
+getAppElements().chatHistoryEl.addEventListener('chat-deleted', () => {
+  chatSession.beginNew();
 });
 
-function getQueryFromForm(form: HTMLFormElement): {
-  input: HTMLTextAreaElement;
-  query: string;
-} | null {
-  if (form.id === 'search-form') {
-    const q = el.input.value.trim();
-    return q ? { input: el.input, query: q } : null;
-  }
-  if (form.classList.contains('turn-followup')) {
-    const input = form.querySelector<HTMLTextAreaElement>('.turn-followup-input');
-    if (!input || input.disabled || input.classList.contains('is-followup-inactive')) {
-      return null;
-    }
-    const q = input.value.trim();
-    return q ? { input, query: q } : null;
-  }
-  return null;
-}
+// =============================================================================
+// Form Submission Handler
+// =============================================================================
 
-el.mainEl.addEventListener('submit', async (e) => {
-  const form = e.target;
-  if (!(form instanceof HTMLFormElement)) return;
-  if (form.id !== 'search-form' && !form.classList.contains('turn-followup')) {
-    return;
-  }
+mainEl.addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  const parsed = getQueryFromForm(form);
-  if (!parsed) return;
+  const form = e.target;
+  if (!(form instanceof HTMLFormElement)) return;
 
-  const statusSlot = statusSlotForSubmittedForm(form, el.statusEl);
+  const formData = getFormDataFromSubmitEvent(form, elements.input);
+  if (!formData) return;
+
+  const statusSlot = statusSlotForSubmittedForm(form, statusEl);
   const deepToggle = form.querySelector<HTMLInputElement>('.archon-deep-toggle');
   const deepResearch = deepToggle?.checked ?? false;
 
-  await runSearch(parsed.query, {
+  status.setTarget(statusSlot);
+
+  await runSearch(formData.query, {
     status,
     statusSlot,
     conversation,
     history,
-    input: el.input,
-    mainEl: el.mainEl,
-    modelSelect: el.modelSelect,
+    input: formData.input,
+    mainEl,
+    modelSelect: elements.modelSelect,
     deepResearch,
   });
 
-  parsed.input.value = '';
+  formData.input.value = '';
 });
 
 history.render();
-void initModelSelect(el.modelSelect, el.mainEl);
+void initModelSelect(getAppElements().modelSelect, mainEl);

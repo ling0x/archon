@@ -1,3 +1,7 @@
+// =============================================================================
+// Chat Storage
+// =============================================================================
+
 import type { SearchResult } from './searxng';
 
 export interface ChatTurn {
@@ -5,27 +9,17 @@ export interface ChatTurn {
   createdAt: number;
   query: string;
   answerRaw: string;
-  /** Optional reasoning trace from Ollama `thinking` stream when enabled. */
   thinkingRaw?: string;
-  /** True when the model reported the `thinking` capability for this turn. */
   thinkingCapable?: boolean;
-  /** Model used to formulate search queries. */
   formulationModel?: string;
-  /** True when the formulation model reported `thinking` capability for this turn. */
   formulationThinkingCapable?: boolean;
-  /** Optional reasoning trace from the formulation model. */
   formulationThinkingRaw?: string;
-  /** Final search queries used for retrieval in this turn. */
   formulationQueries?: string[];
-  /** Deep research: sub-questions / sections planned before search. */
   researchPlan?: string[];
-  /** Deep research pass 1: bullet notes (optional persistence). */
   researchNotesRaw?: string;
-  /** Retrieval used deep mode (multi-round, extraction, two-pass). */
   deepResearch?: boolean;
   sources: SearchResult[];
   model: string;
-  /** Streaming time for the model reply (ms); excludes search/query formulation. */
   generationMs: number;
   error?: string;
 }
@@ -37,124 +31,102 @@ export interface ChatRecord {
   turns: ChatTurn[];
 }
 
-const KEY = 'archon-chats';
+const STORAGE_KEY = 'archon-chats';
 const MAX_CHATS = 100;
 
-/** Parsed thread list; invalidated on every save. Avoids re-parsing JSON on hot paths. */
-let chatsCache: ChatRecord[] | null = null;
+// =============================================================================
+// ID Generation
+// =============================================================================
 
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
+// =============================================================================
+// Basic Validation
+// =============================================================================
+
 function isSearchResult(raw: unknown): raw is SearchResult {
   if (raw === null || typeof raw !== 'object') return false;
   const r = raw as Record<string, unknown>;
-  if (typeof r.title !== 'string' || typeof r.url !== 'string' || typeof r.content !== 'string') {
-    return false;
-  }
-  if (r.publishedDate != null && typeof r.publishedDate !== 'string') return false;
-  if (r.engine != null && typeof r.engine !== 'string') return false;
-  return true;
+  return (
+    typeof r.title === 'string' &&
+    typeof r.url === 'string' &&
+    typeof r.content === 'string'
+  );
 }
 
 function isChatTurn(raw: unknown): raw is ChatTurn {
   if (raw === null || typeof raw !== 'object') return false;
   const t = raw as Record<string, unknown>;
-  if (
-    typeof t.id !== 'string' ||
-    typeof t.createdAt !== 'number' ||
-    typeof t.query !== 'string' ||
-    typeof t.answerRaw !== 'string' ||
-    typeof t.model !== 'string' ||
-    typeof t.generationMs !== 'number' ||
-    !Number.isFinite(t.generationMs) ||
-    !Array.isArray(t.sources) ||
-    !t.sources.every(isSearchResult)
-  ) {
-    return false;
-  }
-  if (t.error != null && typeof t.error !== 'string') return false;
-  if (t.thinkingRaw != null && typeof t.thinkingRaw !== 'string') return false;
-  if (t.thinkingCapable != null && typeof t.thinkingCapable !== 'boolean') return false;
-  if (t.formulationModel != null && typeof t.formulationModel !== 'string') return false;
-  if (
-    t.formulationThinkingCapable != null &&
-    typeof t.formulationThinkingCapable !== 'boolean'
-  ) {
-    return false;
-  }
-  if (t.formulationThinkingRaw != null && typeof t.formulationThinkingRaw !== 'string') {
-    return false;
-  }
-  if (
-    t.formulationQueries != null &&
-    (!Array.isArray(t.formulationQueries) ||
-      !t.formulationQueries.every((q) => typeof q === 'string'))
-  ) {
-    return false;
-  }
-  if (
-    t.researchPlan != null &&
-    (!Array.isArray(t.researchPlan) || !t.researchPlan.every((s) => typeof s === 'string'))
-  ) {
-    return false;
-  }
-  if (t.researchNotesRaw != null && typeof t.researchNotesRaw !== 'string') return false;
-  if (t.deepResearch != null && typeof t.deepResearch !== 'boolean') return false;
-  return true;
+  return (
+    typeof t.id === 'string' &&
+    typeof t.createdAt === 'number' &&
+    typeof t.query === 'string' &&
+    typeof t.answerRaw === 'string' &&
+    typeof t.model === 'string' &&
+    typeof t.generationMs === 'number' &&
+    Array.isArray(t.sources) &&
+    t.sources.every(isSearchResult)
+  );
 }
 
-function parseChatRecord(raw: unknown): ChatRecord | null {
-  if (raw === null || typeof raw !== 'object') return null;
+function isChatRecord(raw: unknown): raw is ChatRecord {
+  if (raw === null || typeof raw !== 'object') return false;
   const o = raw as Record<string, unknown>;
-  if (typeof o.id !== 'string' || o.id.length === 0) return null;
-  if (typeof o.createdAt !== 'number' || typeof o.updatedAt !== 'number') return null;
-  if (!Array.isArray(o.turns) || o.turns.length === 0) return null;
-  if (!o.turns.every(isChatTurn)) return null;
-
-  return {
-    id: o.id,
-    createdAt: o.createdAt,
-    updatedAt: o.updatedAt,
-    turns: o.turns as ChatTurn[],
-  };
+  return (
+    typeof o.id === 'string' &&
+    typeof o.createdAt === 'number' &&
+    typeof o.updatedAt === 'number' &&
+    Array.isArray(o.turns) &&
+    o.turns.every(isChatTurn)
+  );
 }
 
-function readStorage(): ChatRecord[] {
+// =============================================================================
+// Storage Operations
+// =============================================================================
+
+export function loadChats(): ChatRecord[] {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
+
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.map(parseChatRecord).filter((c): c is ChatRecord => c !== null);
+
+    return parsed
+      .filter(isChatRecord)
+      .slice(0, MAX_CHATS);
   } catch {
     return [];
   }
 }
 
-export function loadChats(): ChatRecord[] {
-  if (!chatsCache) chatsCache = readStorage();
-  return chatsCache;
-}
-
 function saveChats(chats: ChatRecord[]): void {
-  chatsCache = chats;
-  localStorage.setItem(KEY, JSON.stringify(chats));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
 }
 
 export function getChatById(id: string): ChatRecord | undefined {
   return loadChats().find((c) => c.id === id);
 }
 
+// =============================================================================
+// Chat Helpers
+// =============================================================================
+
 export function chatTitle(chat: ChatRecord): string {
-  const q = chat.turns[0].query.trim();
-  return q.length > 0 ? q : 'Untitled';
+  const q = chat.turns[0]?.query.trim();
+  return q || 'Untitled';
 }
 
 export function chatHasError(chat: ChatRecord): boolean {
   return chat.turns.some((t) => t.error);
 }
+
+// =============================================================================
+// Turn Operations
+// =============================================================================
 
 export function createTurn(fields: Omit<ChatTurn, 'id' | 'createdAt'>): ChatTurn {
   return {
@@ -171,6 +143,7 @@ export function createNewChatWithTurn(turn: ChatTurn): ChatRecord {
     updatedAt: Date.now(),
     turns: [turn],
   };
+
   saveChats([rec, ...loadChats()].slice(0, MAX_CHATS));
   return rec;
 }
@@ -186,8 +159,24 @@ export function appendTurnToChat(chatId: string, turn: ChatTurn): ChatRecord | n
     updatedAt: Date.now(),
     turns: [...prev.turns, turn],
   };
+
   const next = [...chats];
   next[idx] = updated;
   saveChats(next);
   return updated;
+}
+
+// =============================================================================
+// Delete Chat
+// =============================================================================
+
+export function deleteChat(chatId: string): boolean {
+  const chats = loadChats();
+  const idx = chats.findIndex((c) => c.id === chatId);
+  if (idx === -1) return false;
+
+  const next = [...chats];
+  next.splice(idx, 1);
+  saveChats(next);
+  return true;
 }

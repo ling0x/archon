@@ -1,18 +1,16 @@
-import type { ChatRecord } from '../chatStorage';
-import { loadChats } from '../chatStorage';
+// =============================================================================
+// Chat Session Controller
+// =============================================================================
+
+import type { ChatRecord } from '../types';
+import type { ChatSessionController } from '../types';
+import { loadChats, getChatById } from '../chatStorage';
 import { setCurrentChatId } from '../session';
-import type { ChatHistoryView } from '../ui/chatHistory';
-import type { ConversationView } from '../ui/conversation';
-import { statusSlotAtConversationTail, type StatusBar } from '../ui/statusBar';
+import type { ChatHistoryView, ConversationView, StatusBar } from '../types';
+import { statusSlotAtConversationTail } from '../ui/statusBar';
 import { updateTopFormVisibility } from '../ui/threadChrome';
 
-export type ChatSessionController = {
-  applyRecord: (chat: ChatRecord) => void;
-  beginNew: () => void;
-  selectById: (id: string) => void;
-};
-
-const PH_NEW = 'Ask anything…';
+const PLACEHOLDER_NEW = 'Ask anything…';
 
 export function createChatSessionController(deps: {
   input: HTMLTextAreaElement;
@@ -23,24 +21,14 @@ export function createChatSessionController(deps: {
   mainEl: HTMLElement;
   onAfterNavigate?: () => void;
 }): ChatSessionController {
-  const {
-    input,
-    status,
-    mainStatusSlot,
-    conversation,
-    history,
-    mainEl,
-    onAfterNavigate,
-  } = deps;
+  const { input, status, mainStatusSlot, conversation, history, mainEl, onAfterNavigate } = deps;
 
-  function applyRecord(chat: ChatRecord) {
+  function applyRecord(chat: ChatRecord): void {
     setCurrentChatId(chat.id);
     input.value = '';
-    input.placeholder = PH_NEW;
-
+    input.placeholder = PLACEHOLDER_NEW;
     conversation.renderChat(chat);
     updateTopFormVisibility(mainEl);
-
     status.setTarget(statusSlotAtConversationTail(mainEl, mainStatusSlot));
 
     const last = chat.turns[chat.turns.length - 1];
@@ -49,14 +37,13 @@ export function createChatSessionController(deps: {
     } else {
       status.clear();
     }
-
     history.syncActive();
   }
 
-  function beginNew() {
+  function beginNew(): void {
     setCurrentChatId(null);
     input.value = '';
-    input.placeholder = PH_NEW;
+    input.placeholder = PLACEHOLDER_NEW;
     conversation.clear();
     conversation.hide();
     status.clearAll();
@@ -66,7 +53,7 @@ export function createChatSessionController(deps: {
     onAfterNavigate?.();
   }
 
-  function selectById(id: string) {
+  function selectById(id: string): void {
     const chat = loadChats().find((c) => c.id === id);
     if (!chat) return;
     applyRecord(chat);

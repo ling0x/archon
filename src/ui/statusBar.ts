@@ -1,19 +1,15 @@
-export type StatusBar = {
-  /** Route status messages to a composer’s status line (main or follow-up strip). */
-  setTarget: (el: HTMLElement) => void;
-  set: (msg: string, isError?: boolean) => void;
-  clear: () => void;
-  /** Clear every `.composer-status` in the main panel (e.g. new chat). */
-  clearAll: () => void;
-};
+// =============================================================================
+// Status Bar
+// =============================================================================
 
-export function createStatusBar(
-  mainStatusSlot: HTMLElement,
-  mainPanel: HTMLElement,
-): StatusBar {
+import type { StatusBar } from '../types';
+
+export type { StatusBar };
+
+export function createStatusBar(mainStatusSlot: HTMLElement, mainPanel: HTMLElement): StatusBar {
   let target = mainStatusSlot;
 
-  function paint(msg: string, isError: boolean, hide: boolean) {
+  function paint(msg: string, isError: boolean, hide: boolean): void {
     if (hide) {
       target.classList.add('hidden');
       target.textContent = '';
@@ -26,16 +22,19 @@ export function createStatusBar(
   }
 
   return {
-    setTarget(el) {
+    setTarget(el: HTMLElement): void {
       target = el;
     },
-    set(msg: string, isError = false) {
+
+    set(msg: string, isError = false): void {
       paint(msg, isError, false);
     },
-    clear() {
+
+    clear(): void {
       paint('', false, true);
     },
-    clearAll() {
+
+    clearAll(): void {
       target = mainStatusSlot;
       mainPanel.querySelectorAll<HTMLElement>('.composer-status').forEach((el) => {
         el.classList.add('hidden');
@@ -47,23 +46,13 @@ export function createStatusBar(
 }
 
 /** Status line under the composer that submitted the current search. */
-export function statusSlotForSubmittedForm(
-  form: HTMLFormElement,
-  mainStatusSlot: HTMLElement,
-): HTMLElement {
-  const slot = form
-    .closest('.composer-strip')
-    ?.querySelector<HTMLElement>('.composer-status');
+export function statusSlotForSubmittedForm(form: HTMLFormElement, mainStatusSlot: HTMLElement): HTMLElement {
+  const slot = form.closest('.composer-strip')?.querySelector<HTMLElement>('.composer-status');
   return slot ?? mainStatusSlot;
 }
 
-/** Last follow-up strip’s status (active composer when a thread is open). */
-export function statusSlotAtConversationTail(
-  mainPanel: HTMLElement,
-  mainStatusSlot: HTMLElement,
-): HTMLElement {
-  const strips = mainPanel.querySelectorAll<HTMLElement>(
-    '#conversation .turn-followup-strip .composer-status',
-  );
+/** Last follow-up strip's status (active composer when a thread is open). */
+export function statusSlotAtConversationTail(mainPanel: HTMLElement, mainStatusSlot: HTMLElement): HTMLElement {
+  const strips = mainPanel.querySelectorAll<HTMLElement>('#conversation .turn-followup-strip .composer-status');
   return strips[strips.length - 1] ?? mainStatusSlot;
 }
