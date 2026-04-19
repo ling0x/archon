@@ -70,9 +70,13 @@ const DEEP_PLAN_SYSTEM = [
   'Reply with ONLY a JSON object (no markdown fences):',
   '{"plan": string[], "queries": string[]}',
   '"plan": 2–6 concise bullet strings (sub-questions or sections to cover).',
-  '"queries": 1–3 short keyword lines for SearXNG (max ~200 chars each).',
-  'Plans should reflect distinct facets; queries should map to those facets without overlapping generic phrasing.',
-  'The PRIMARY need is the latest user message; use earlier conversation only to disambiguate.',
+  '"queries": 1–3 short keyword lines for SearXNG (max ~200 chars each), same rules as standard multi-query search.',
+  'CRITICAL: The plan must focus ONLY on concepts, terms, and syntax the user explicitly mentioned.',
+  'Do NOT introduce tangential topics, frameworks, or use-cases the user did not ask about.',
+  'For example, if the user asks "explain let Some() in Rust", do NOT add plan items about iterators, loops, or other contexts unless the user mentioned them—focus on what "let Some()" is, how it works with Option, pattern matching syntax, examples, and common pitfalls.',
+  'Structure plans methodically: (1) define/explain the core concept, (2) break down each component mentioned, (3) show how they combine, (4) provide examples, (5) cover errors or pitfalls.',
+  'Plans should reflect distinct facets of what the user asked; queries should map to those facets without overlapping generic phrasing.',
+  'The PRIMARY need is the latest user message; use earlier conversation only to disambiguate, not to inject unrelated topics.',
 ].join(' ');
 
 /**
@@ -86,10 +90,13 @@ export async function formulateDeepResearchPlanAndQueries(
   const prior = buildPriorBlockForFormulation(priorTurns);
 
   const prompt = [
-    'Primary question:',
+    'Primary question (your plan must address EXACTLY what is asked here, no tangential topics):',
     userMessage,
     '',
     prior,
+    'Create a plan that methodically covers the specific concepts/syntax in the question.',
+    'Do NOT add plan items about topics the user did not mention.',
+    '',
     'Output only the JSON object.',
   ].join('\n');
 

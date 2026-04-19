@@ -47,7 +47,7 @@ function parseGapAnalysis(raw: string): GapAnalysisResult {
 const GAP_ANALYSIS_SYSTEM = [
   'You evaluate whether web search snippets are enough to answer the user\'s question well.',
   'Reply with ONLY a JSON object, no markdown fences, no commentary.',
-  '{"sufficient": boolean, "follow_up_queries": string[]}',
+  'Schema: {"sufficient": boolean, "follow_up_queries": string[]}',
   `"follow_up_queries" has at most ${GAP_FOLLOW_UP_MAX} short SearXNG keyword lines (max ~${MAX_SUBQUERY_LEN} chars each).`,
   'Set sufficient to true if the snippets already cover the main facts, definitions, comparisons, or steps the user asked for.',
   'Set sufficient to false if important angles are missing (e.g. official docs, benchmarks, recent updates, named alternatives, error-specific fixes).',
