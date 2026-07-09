@@ -69,5 +69,5 @@ export function syncThemeToggleButton(btn: HTMLButtonElement, theme: Theme): voi
   btn.setAttribute('aria-pressed', isLight ? 'true' : 'false');
   btn.setAttribute('aria-label', label);
   btn.title = label;
-  btn.textContent = isLight ? '☾' : '☀';
+  btn.textContent = isLight ? 'Dark Mode' : 'Light Mode';
 }
