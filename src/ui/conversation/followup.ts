@@ -45,7 +45,7 @@ export function createFollowupSlot(isLast: boolean): HTMLElement {
 
   const modelSel = document.createElement('select');
   modelSel.className = 'composer-model-select';
-  modelSel.setAttribute('aria-label', 'Ollama model');
+  modelSel.setAttribute('aria-label', 'Local model');
   const sid = `followup-model-${crypto.randomUUID()}`;
   label.htmlFor = sid;
   modelSel.id = sid;

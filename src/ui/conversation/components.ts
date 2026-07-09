@@ -3,6 +3,7 @@
 // =============================================================================
 
 import type { SearchResult } from '../../searxng';
+import { displayModelLabel } from '../../llm/modelRef';
 import { escapeHtml } from '../../utils/html';
 import { renderAnswerMarkdown, formatAnswerForMarkdownExport } from '../../markdown';
 import type { ChatTurn } from '../../chatStorage';
@@ -97,8 +98,9 @@ function createQueryShell(query: string, model: string, showReasoning: boolean):
 
   const modelTag = document.createElement('span');
   modelTag.className = 'turn-model-tag';
-  modelTag.textContent = model;
-  modelTag.title = `Model: ${model}`;
+  const modelLabel = displayModelLabel(model);
+  modelTag.textContent = modelLabel;
+  modelTag.title = `Model: ${modelLabel}`;
   trailing.appendChild(modelTag);
 
   if (showReasoning) {
@@ -188,8 +190,9 @@ export function createFormulationDetails(snapshot: {
   if (snapshot.model?.trim()) {
     const modelTag = document.createElement('span');
     modelTag.className = 'turn-model-tag';
-    modelTag.textContent = snapshot.model.trim();
-    modelTag.title = `Formulation model: ${snapshot.model.trim()}`;
+    const modelLabel = displayModelLabel(snapshot.model.trim());
+    modelTag.textContent = modelLabel;
+    modelTag.title = `Formulation model: ${modelLabel}`;
     summary.appendChild(modelTag);
   }
 

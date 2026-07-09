@@ -1,22 +1,31 @@
 // =============================================================================
-// Ollama API Client
+// Local LLM API Client (Ollama + llama.cpp)
 // =============================================================================
 
 import type { OllamaStreamChunk } from '../../types';
+import { parseModelRef } from '../../llm/modelRef';
+import { llamacppGenerate, streamLlamacppGenerate } from '../../llm/llamacppApi';
 
-const API_BASE = '/ollama/api';
+const OLLAMA_API_BASE = '/ollama/api';
 
 /**
- * Stream generate response from Ollama.
+ * Stream generate response from Ollama or llama.cpp.
  * Yields parsed chunks until done, then returns final response.
  */
 export async function* streamGenerate(
   body: Record<string, unknown>,
 ): AsyncGenerator<OllamaStreamChunk, string, undefined> {
-  const response = await fetch(`${API_BASE}/generate`, {
+  const { provider, model } = parseModelRef(String(body.model ?? ''));
+  const routedBody = { ...body, model };
+
+  if (provider === 'llamacpp') {
+    return yield* streamLlamacppGenerate(routedBody);
+  }
+
+  const response = await fetch(`${OLLAMA_API_BASE}/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(routedBody),
   });
 
   if (!response.ok) {
@@ -59,10 +68,17 @@ export async function* streamGenerate(
 export async function generate(
   body: Record<string, unknown>,
 ): Promise<string> {
-  const response = await fetch(`${API_BASE}/generate`, {
+  const { provider, model } = parseModelRef(String(body.model ?? ''));
+  const routedBody = { ...body, model };
+
+  if (provider === 'llamacpp') {
+    return llamacppGenerate(routedBody);
+  }
+
+  const response = await fetch(`${OLLAMA_API_BASE}/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
+    body: JSON.stringify(routedBody),
   });
 
   if (!response.ok) {

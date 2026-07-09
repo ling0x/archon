@@ -13,6 +13,8 @@ export default defineConfig(({ mode }) => {
 
   const searchFormulationModel =
     env.SEARCH_FORMULATION_MODEL?.trim() || 'qwen3.5:9b';
+  const llamacppPort = envPositiveInt(env.LLAMACPP_PORT, 9090);
+
   const ollamaFallbackModel =
     env.OLLAMA_FALLBACK_MODEL?.trim() || 'gpt-oss:20b';
   const ollamaDeepAnswerModel = env.OLLAMA_DEEP_ANSWER_MODEL?.trim() ?? '';
@@ -95,6 +97,11 @@ export default defineConfig(({ mode }) => {
           target: 'http://localhost:11434',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/ollama/, ''),
+        },
+        '/llamacpp': {
+          target: `http://localhost:${llamacppPort}`,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/llamacpp/, ''),
         },
       },
     },
